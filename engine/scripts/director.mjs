@@ -83,6 +83,7 @@ const use = (...n) => n.forEach(x => used.add(x));
 let id = 0; report.items = [];
 const item = (src, why, t = null) => { const k = `d${++id}`; report.items.push({ id: k, why, t: t == null ? null : r2(t) }); if (DROP.has(k)) { report.dropped.push({ id: k, why, src }); return; } out.push(`${src}   // ${k}`); };
 const emph = new Set(); let prev = null, firstFrame = null, night = false, lastTitleEnd = -1;
+let firstShot = null;   // the first frame of the film and the line that holds it: the orbit opening dives onto it
 const numbersSeen = [];
 const COLS = ['#ffd23f', '#2fd6c8', '#ff8a3d', '#b48cff', '#5fd36b'];
 
@@ -159,6 +160,7 @@ LINES.forEach(([a, b], li) => {
     arrive = Math.max(arrive, li === 0 ? 0 : L0 + .35);
     const k = (() => { let best = a; for (let i = a; i <= b; i++) if (ts(i) <= arrive) best = i; return best; })();
     const at = li === 0 ? '0' : A(k, false, arrive - ts(k));
+    if (!firstShot) firstShot = { F: { ...F }, li, key: cams.length };
     if (li === 0) { firstFrame = { ...F }; cams.push(`cam(0, { lon: ${F.lon}, lat: ${F.lat}, span: ${r2(F.span * 1.25)} });   // opening: ${why}, a little wider`); }
     else if (!prev || far(prev, F) > .18) cams.push(`cam(${at}, { lon: ${F.lon}, lat: ${F.lat}, span: ${F.span}, ease: 'io'${fx === 'غوص' || (prev && F.span < prev.span / 4) ? ', dive: true' : ''} });   // ${why}`);
     // the hold key: the camera stays on what is being described and keeps a slow push until the line ends
@@ -259,6 +261,22 @@ LINES.forEach(([a, b], li) => {
     item(`sprite('${p0.craft}', null, { at: ${A(a, false, 1.0)}, early: 0, along: lane('${p0.lane}'), travel: ${r2(Math.max(4, te(b) - ts(a) + 2.5) * 1.6)}, sfx: false });   // the loop: the opening ship again`, `craft ${p0.craft}`, ts(a));
     use('path'); item(`path(lane('${p0.lane}'), { at: ${A(at)}, dur: .6, color: '#ff4757', width: 11, sea: true });`, 'loop route', ts(at)); }
   if (firstFrame) cams.push(`cam(${A(b, true, 1.0)}, { lon: ${firstFrame.lon}, lat: ${firstFrame.lat}, span: ${r2(firstFrame.span * 1.25)}, ease: 'io' });   // loop: back to the opening frame`); }
+
+// ---- the «مَدار» opening (2026-11-17): every film starts in orbit, the whole Earth turning, then one fast smooth dive
+// lands on the first place by ~2.2 s, while the hook title is already on screen from frame 0. The viewer knows WHERE in the
+// world before the first fact, the first second moves, and it is the channel's own signature (مَدار = orbit).
+// config.json "opening": false keeps the old opening; the end of the film pulls back to the landing frame (the Shorts loop).
+const CFGJ = (() => { try { return JSON.parse(fs.readFileSync(path.join(proj, 'config.json'), 'utf8')); } catch { return {}; } })();
+if (firstShot && CFGJ.opening !== false) {
+  const F = firstShot.F, LAND = 2.2, wrap = x => ((x + 540) % 360) - 180;
+  const land = { lon: F.lon, lat: F.lat, span: r2(firstShot.li === 0 ? F.span * 1.25 : Math.min(40, Math.max(8, F.span * 5))) };
+  const orbit = `cam(0, { lon: ${r3(wrap(F.lon + 70))}, lat: ${r3(Math.max(-28, Math.min(28, F.lat * .4)))}, span: 170, cy: .46 });   // opening: the Earth from orbit`;
+  const dive = `cam(${LAND}, { lon: ${land.lon}, lat: ${land.lat}, span: ${land.span}, ease: 'io', dive: true });   // the dive from orbit onto the first place`;
+  if (firstShot.li === 0) cams.splice(firstShot.key, 1, orbit, dive); else cams.unshift(orbit, dive);
+  const li = cams.findIndex(c => c.includes('// loop: back to the opening frame'));
+  if (li >= 0) cams[li] = cams[li].replace(/lon: [-\d.]+, lat: [-\d.]+, span: [\d.]+/, `lon: ${land.lon}, lat: ${land.lat}, span: ${land.span}`);
+  report.notes.push(`opening: orbit -> dive onto ${F.lon},${F.lat} by ${LAND} s (span ${land.span})`);
+}
 
 const src = `// Written by engine/scripts/director.mjs (TaleSpark 2.0 automatic director, ${new Date().toISOString().slice(0, 16)})
 // from script.txt + web/timing.json${PLAN.length ? ' + shotplan.json (Gemini)' : ''}. Every item has an id (// dN); the logic gate's rejects go to director.drop.json.
