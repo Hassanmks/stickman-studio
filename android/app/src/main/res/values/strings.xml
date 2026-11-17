@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TaleSpark</string>
+    <string name="share_target">أرسل إلى TaleSpark</string>
+    <string name="channel_name">حالة الإنتاج</string>
+    <string name="channel_progress">التقدّم الحي</string>
+    <string name="widget_name">حالة الفيديو</string>
+    <string name="widget_desc">ما يعمل الآن على السحابة، وما ينتظرك</string>
+</resources>

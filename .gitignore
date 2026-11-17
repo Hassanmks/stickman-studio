@@ -1,0 +1,75 @@
+# TaleSpark 2.0 / «مَدار»: only what the maps pipeline needs goes to GitHub. Heavy, re-creatable or private files stay local.
+
+# videos, voices, renders, downloads
+*.mp4
+*.mov
+*.wav
+!/engine/sfx/**/*.wav
+/output/
+/references/
+/hormuz-test.mp4
+
+# engine: downloaded or rebuilt on demand
+/engine/node_modules/
+/engine/cache/*
+!/engine/cache/globe-8k.jpg
+/engine/data/world.pre-morocco.json
+__pycache__/
+*.pyc
+
+# sound library: the 557 MB library stays local; only the house kit that sound.py uses is shared (20 files)
+/engine/sfx/*
+!/engine/sfx/drone/
+/engine/sfx/drone/*
+!/engine/sfx/drone/low_drone_001_1.wav
+!/engine/sfx/drone/low_drone_001_2.wav
+!/engine/sfx/gen/
+!/engine/sfx/impact/
+/engine/sfx/impact/*
+!/engine/sfx/impact/Impact_Drum_Hit_03.wav
+!/engine/sfx/impact/Signum_source_composite_impact_2.wav
+!/engine/sfx/impact/med_dark_001.wav
+!/engine/sfx/impact/short_med_003.wav
+!/engine/sfx/riser/
+/engine/sfx/riser/*
+!/engine/sfx/riser/Bluezone-BC0212-rise-001.wav
+!/engine/sfx/tension/
+/engine/sfx/tension/*
+!/engine/sfx/tension/Malfunction_Glitch_Short_BRSound-106.wav
+!/engine/sfx/ui/
+/engine/sfx/ui/*
+!/engine/sfx/ui/kenney_drop_003.wav
+!/engine/sfx/ui/kenney_select_006.wav
+!/engine/sfx/ui/kenney_switch_007.wav
+!/engine/sfx/whoosh/
+/engine/sfx/whoosh/*
+!/engine/sfx/whoosh/CHT2_Cinematic_Transition_105.wav
+!/engine/sfx/whoosh/glow_med_L_to_R_002.wav
+!/engine/sfx/whoosh/pang_short_R_to_L_003.wav
+!/engine/sfx/whoosh/whistle_med_R_to_L_001.wav
+
+# projects: only the sources of a film (script, settings, story, word timing); the rest is rebuilt by build.py
+/projects/*/*
+!/projects/*/script.txt
+!/projects/*/config.json
+!/projects/*/web
+/projects/*/web/*
+!/projects/*/web/story.js
+!/projects/*/web/timing.json
+
+# android: build output and the signing key never go to a public repository
+/android/**/build/
+/android/.gradle/
+/android/local.properties
+/android/keystore/
+/android/release/
+*.jks
+*.keystore
+keystore.properties
+
+# local tools and secrets
+.env
+*.secret
+host/pairing.json
+host/state/
+.claude/settings.local.json

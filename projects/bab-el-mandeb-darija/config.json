@@ -1,0 +1,14 @@
+{
+ "name": "bab-el-mandeb-darija-v1",
+ "lang": "ar",
+ "engine": "file",
+ "rate": "+4%",
+ "maxGap": 0.16,
+ "lead": 0.15,
+ "fps": 120,
+ "workers": 4,
+ "lufs": -14,
+ "true_peak": -1.5,
+ "whisper_model": "large-v3",
+ "whisper_prompt": true
+}

@@ -1,0 +1,11 @@
+{
+ "name": "rub-al-khali",
+ "lang": "ar",
+ "engine": "file",
+ "maxGap": 0.18,
+ "lead": 0.15,
+ "fps": 120,
+ "workers": 6,
+ "lufs": -14,
+ "true_peak": -1.5
+}

@@ -1,0 +1,72 @@
+# Maven Map sprite library: ChatGPT sheets (method copied from stickman-studio)
+# Tiers: (1) real photos -> engine/scripts/fetch_photo.py (Wikimedia Commons, PD/free licence)
+#        (2) Fluent 3D emoji already local -> engine/assets/emoji/<name>.png (MIT)
+#        (3) ChatGPT sheets below -> slice with: py -3 engine/scripts/slice_sheet.py <sheet.png> engine/assets/sprites/<set> --n 8
+# Flags inside borders use flag-icons SVG (MIT) -> engine/assets/flags/<iso2>.svg (accurate, not generated)
+# Every object is drawn in a top-down 3/4 aerial view so it sits naturally on the satellite map.
+
+--- SHEET 1 of 3 : sea ---
+Create ONE single image: a sprite sheet with 8 separate objects arranged in a clean grid of 3 columns and 3 rows, portrait 1024x1536.
+Order: left to right, then top to bottom, exactly as numbered below (the last cell stays empty).
+Background: one flat plain light-grey colour (#D9D9D9) everywhere. No gradient, no floor, no shadows on the background, no texture.
+Each object: fully visible, centered in its own cell, all about the same size, with wide empty space between objects. Objects must never touch or overlap.
+No text, no numbers, no labels, no letters, no flags, no logos, no watermark, no grid lines, no borders.
+Style for every object: glossy 3D render like Microsoft Fluent 3D emoji, soft studio lighting, smooth materials, vibrant natural colours, high detail, consistent style.
+Camera for every object: seen from above at a 3/4 aerial angle (about 40 degrees), the bow pointing to the RIGHT, as if placed on a map.
+1. A giant crude-oil tanker: long dark red hull, flat deck with pipes, white bridge tower at the back.
+2. A large container ship loaded with stacked colourful containers (red, blue, green, orange).
+3. A grey modern navy destroyer with a gun at the front and radar mast in the middle.
+4. A grey aircraft carrier with a flat deck and a small island tower on the right side.
+5. A dark submarine surfaced, conning tower visible, small white wake.
+6. A traditional wooden Arab dhow with one large triangular cream sail.
+7. A small fast grey patrol speedboat with a white wake behind it.
+8. The same crude-oil tanker as object 1 but damaged and burning, orange flames and a thick black smoke plume rising.
+
+--- SHEET 2 of 3 : military and threats ---
+(same header lines as sheet 1, then:)
+This is sheet 2 of 3: keep exactly the same style, size, lighting and background as sheet 1.
+Camera for every object: seen from above at a 3/4 aerial angle (about 40 degrees), pointing to the RIGHT.
+1. A grey anti-ship cruise missile in flight, horizontal, bright orange flame and short smoke trail at the back.
+2. A grey delta-wing one-way attack drone with a small propeller at the back (generic, no markings).
+3. A grey fighter jet seen from above.
+4. A sand-coloured main battle tank.
+5. A dark green attack helicopter with spinning rotor blur.
+6. A sand-coloured military truck carrying two missile launch tubes raised at an angle.
+7. A big orange explosion fireball with dark smoke, cartoon-realistic 3D.
+8. A small military base: white radar dome, two low beige buildings and an empty flag pole, on a sand-coloured square base.
+
+--- SHEET 3 of 3 : economy and people ---
+(same header lines as sheet 1, then:)
+This is sheet 3 of 3: keep exactly the same style, size, lighting and background as sheet 1.
+Camera for every object: seen from above at a 3/4 aerial angle (about 40 degrees).
+1. A neat stack of blue and black oil barrels (about nine barrels).
+2. A pile of stacked shipping containers in red, blue and orange.
+3. A wooden pallet loaded with bundles of green US dollar banknotes.
+4. A short silver oil/gas pipeline segment with a red valve wheel in the middle.
+5. An oil pump jack (nodding donkey) on a small sand base.
+6. A tall yellow port container crane.
+7. A small crowd of eight diverse ordinary people standing together, friendly 3D cartoon style, no faces of real people.
+8. A group of five soldiers in sand camouflage uniforms with helmets, standing in a row, generic, no insignia.
+
+--- SHEET 4 : moving objects seen straight from above (v6, "logic in everything") ---
+# Every object that MOVES on the map is drawn from directly above with its nose up, so the engine can turn it to its real heading.
+# Slice to engine/assets/sprites/top/ (tanker, container_ship, destroyer, dhow, missile, drone, fighter_jet, tanker_burning).
+Create ONE single image: a sprite sheet with 8 separate objects arranged in a clean grid of 3 columns and 3 rows, portrait 1024x1536.
+Order: left to right, then top to bottom, exactly as numbered below (the last cell stays empty).
+Background: one flat plain light-grey colour (#D9D9D9) everywhere. No gradient, no floor, no shadows on the background, no texture.
+Each object: fully visible, centered in its own cell, all about the same height, with wide empty space between objects. Objects must never touch or overlap.
+No text, no numbers, no labels, no letters, no flags, no logos, no watermark, no grid lines, no borders.
+This is sheet 4: keep exactly the same style, materials, colours, lighting and background as the previous sheets in this chat.
+Camera for every object: seen from DIRECTLY ABOVE, a true 90-degree top-down plan view like a satellite looking straight down. Perfectly symmetrical left and right. The bow or nose points straight UP to the top of the image, the stern or tail is at the bottom. No perspective tilt, the sides of the hull are not visible. No water, no wake, no cast shadow.
+1. A giant crude-oil tanker: long dark red hull outline, flat red deck with grey pipes along the centre line, white bridge block at the stern (bottom).
+2. A large container ship: dark blue hull, the deck fully covered with rows of colourful containers (red, blue, green, orange), white bridge near the stern.
+3. A grey modern navy destroyer: slim pointed hull, a gun at the bow, radar mast in the middle, helicopter pad at the stern.
+4. A traditional wooden Arab dhow: brown wooden hull with a pointed bow, one cream triangular sail seen from above.
+5. A grey anti-ship cruise missile: nose up, small wings in the middle, tail fins, a short bright orange flame at the bottom.
+6. A grey delta-wing one-way attack drone: triangular wing, nose up, small propeller at the back (generic, no markings).
+7. A grey fighter jet: nose up, swept wings, twin tail (generic, no markings).
+8. The same crude-oil tanker as object 1, but damaged: the middle of the deck is on fire with orange flames and dark smoke seen from above.
+
+--- SHEET 5 : LNG carrier + aircraft carrier, straight from above (2026-11-17, same chat "Create Ship Sprite Sheet", accepted first time) ---
+# Sliced with slice_sheet.py --n 2 to engine/assets/sprites/top/lng_carrier.png and top/carrier.png.
+This is sheet 5: keep exactly the same style, materials, colours, lighting and flat plain light-grey #D9D9D9 background as sheet 4 in this chat (the moving objects seen straight from above). Create ONE single image, portrait 1024x1536, with 2 separate objects side by side: 2 columns and 1 row, object 1 on the left, object 2 on the right. Each object fully visible, centered in its own column, both about the same height (most of the image height), with wide empty space between them; they never touch. No text, no numbers, no hull numbers, no labels, no letters, no flags, no logos, no markings, no watermark, no grid lines, no borders. Camera: seen from DIRECTLY ABOVE, a true 90-degree top-down plan view like a satellite looking straight down. The bow points straight UP to the top of the image, the stern is at the bottom. No perspective tilt, the sides of the hull are not visible. No water, no wake, no cast shadow. 1. A large LNG carrier (liquefied natural gas tanker): long dark-red hull outline with a pointed bow, white-grey deck, four big round spherical gas tank domes in a straight row along the centre line, white bridge block at the stern (bottom). 2. A grey nuclear aircraft carrier: long flat dark-grey flight deck with thin white runway lines and an angled landing strip, a small grey island tower on the right side, a few small grey jets parked along the deck edges, pointed bow at the top.

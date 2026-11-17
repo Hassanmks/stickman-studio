@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Animated splash (Android 12+): 1.2.2 TaleSpark: the frame springs in, the big spark pops, the small spark spins. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <group android:name="key" android:pivotX="49" android:pivotY="55" android:scaleX="0.6" android:scaleY="0.6">
+                <path android:strokeColor="#FFF4F3EE" android:strokeWidth="3" android:fillColor="#00000000"
+                    android:pathData="M41,30 L57,30 Q63,30 63,36 L63,74 Q63,80 57,80 L41,80 Q35,80 35,74 L35,36 Q35,30 41,30 Z" />
+            </group>
+            <group android:name="play" android:pivotX="52" android:pivotY="58" android:scaleX="0" android:scaleY="0">
+                <path android:strokeColor="#FF0B0B0D" android:strokeWidth="4" android:strokeLineJoin="round" android:fillColor="#FF0B0B0D"
+                    android:pathData="M52,43 Q54.2,55.8 67,58 Q54.2,60.2 52,73 Q49.8,60.2 37,58 Q49.8,55.8 52,43 Z" />
+                <path android:fillColor="#FFD97757"
+                    android:pathData="M52,43 Q54.2,55.8 67,58 Q54.2,60.2 52,73 Q49.8,60.2 37,58 Q49.8,55.8 52,43 Z" />
+            </group>
+            <group android:name="spark" android:pivotX="70" android:pivotY="33" android:scaleX="0" android:scaleY="0">
+                <path android:fillColor="#FFD97757"
+                    android:pathData="M70,25.5 Q71.1,31.9 77.5,33 Q71.1,34.1 70,40.5 Q68.9,34.1 62.5,33 Q68.9,31.9 70,25.5 Z" />
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="key">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.6" android:valueTo="1" android:duration="420"
+                    android:interpolator="@android:anim/overshoot_interpolator" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.6" android:valueTo="1" android:duration="420"
+                    android:interpolator="@android:anim/overshoot_interpolator" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="play">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0" android:valueTo="1" android:startOffset="250"
+                    android:duration="300" android:interpolator="@android:anim/overshoot_interpolator" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0" android:valueTo="1" android:startOffset="250"
+                    android:duration="300" android:interpolator="@android:anim/overshoot_interpolator" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="spark">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0" android:valueTo="1" android:startOffset="420" android:duration="260" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0" android:valueTo="1" android:startOffset="420" android:duration="260" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-90" android:valueTo="0" android:startOffset="420" android:duration="420" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

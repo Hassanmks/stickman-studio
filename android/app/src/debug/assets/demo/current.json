@@ -1,0 +1,20 @@
+{
+ "slug": "sahara-defense-wall",
+ "title": "علاش تبنى الجدار الدفاعي ف الصحراء المغربية؟",
+ "voice_name": "Enzo",
+ "voice_text": "Read aloud in authentic Moroccan Darija (the Moroccan Arabic dialect spoken every day in Casablanca), with a natural Moroccan accent. Performance direction (do NOT read these directions aloud): open with a gripping, fast, punchy first sentence; sound genuinely curious on questions; slow down slightly on numbers and dates; a calm, serious tone when explaining the wall; build suspense before every sentence that starts with \"ولكن\"; end with a warm smile and a real question to the audience. Pronounce the words as the partial diacritics indicate, and do not read the diacritics themselves. Read the text below EXACTLY, word for word: do not add, improvise, explain or continue beyond it, and stop after the last sentence. Short pause between paragraphs:\n\n2700 كِيلُومِتْر دْيَالْ الرمل والحجر!\n\nوغادي نعرفو شكون بْنَاهْ، وعلاش؟\n\nف سنة 1980 كان الوضع ف الصحراء المغربية صْعِيبْ.\n\nعناصر البوليساريو كِيهْجْمُو بسيارات سريعة، وكيختافو ف الصحراء.\n\nوالجيش المغربي ما قدرش يْلَحْقْهُمْ ف صحراء كبيرة بْحَالْ هاد.\n\nفْجَاتْ فِكْرَة جديدة: جِدَارْ من الرمل والحجر!\n\nبأمر من الملك الحسن الثاني رحمه الله، بْدَا البناء ف غُشْتْ 1980.\n\nالجِدَارْ الأول حاوط العيون والسمارة وفوسفاط بوكراع.\n\n500 كِيلُومِتْر دَازُو ف حوالي سنتين.\n\nولكن المُشْكِلْ ما تْحَلّْشْ، وْبْقَاوْ كِيبْنَاوْ جْدْرَانْ جْدَادْ!\n\nست جْدْرَانْ ف حوالي 7 سنين!\n\nآخرها تكمل ف أبريل 1987، وطولو حوالي 550 كِيلُومِتْر.\n\nولكن شنو كاين داخل هاد الجِدَارْ؟\n\nرمل وحجر، بعلو بين 2 و3 أمتار.\n\nوراه خَنْدَقْ، وْحُقُولْ أَلْغَامْ.\n\nوكل حوالي 5 كيلومترات، مركز مْرَاقْبَة.\n\nورادارات كَتْكْشَفْ حتى 60 كِيلُومِتْر وأكثر.\n\nوف كل نقطة كبيرة، من 35 حتى 40 جندي.\n\nوبعد الجِدَارْ، الهجمات السريعة ولات صعيبة.\n\nوف 1991 وقع وقف إطلاق النار، تحت إشراف الأمم المتحدة.\n\n2700 كِيلُومِتْر دْيَالْ الرمل. شْحَالْ كُنْتِي كَتْحْسَبْ طُولُو؟ كْتَبْ الرقم ف التعليقات!\n",
+ "image_prompts": [
+  "Create ONE single image: a sprite sheet with 8 separate objects arranged in a clean grid of 3 columns, portrait 1024x1536.\nOrder: left to right, then top to bottom, exactly as numbered below (the last row may be partly empty).\nBackground: one flat plain light-grey colour (#D9D9D9) everywhere. No gradient, no floor, no shadows, no texture.\nEach object: fully visible, centered in its own cell, all about the same size, with wide empty space between objects. Objects must never touch or overlap.\nNo text, no numbers, no labels, no letters, no watermark, no grid lines, no borders.\nStyle for every object: glossy 3D render like Apple / Microsoft Fluent 3D emoji, soft studio lighting, smooth materials, vibrant natural colours, high detail, consistent style.\nPeople: friendly 3D cartoon caricature (Pixar-like bust, head and shoulders), recognizable by their real signature features, respectful, not photorealistic.\n1. A friendly soldier bust in a sand-coloured desert camouflage uniform and helmet, with a small red patch on the shoulder\n2. A sand-coloured 4x4 desert pickup truck driving fast, with a dust cloud behind it\n3. A yellow bulldozer pushing a heap of sand, on a small sandy mound\n4. A cross-section block of a desert defensive embankment: a long sand-and-stone wall about two metres high, with a trench in front and a small stone bunker on top\n5. A tall radar tower on a sandy hill, with a rotating radar dish on top and a small grey cabin at its base\n6. A friendly United Nations peacekeeper bust wearing a light-blue helmet and a white vest\n7. The flag of Morocco on a short golden pole: plain red field with a green five-pointed star outline in the center\n8. A small sand-coloured stone watchtower outpost with a flat roof, a tiny red flag on top, and a sandbag wall around it"
+ ],
+ "chatgpt_images": 8,
+ "real_photos": [
+  "الملك الحسن الثاني رحمه الله",
+  "حصن رملي في الصحراء"
+ ],
+ "fluent_images": [
+  "Brick",
+  "Hourglass"
+ ],
+ "checks": "red-lines: OK · motion: OK",
+ "notes": ""
+}
