@@ -4,6 +4,9 @@
 
 **START HERE:** read `PROJECT_STATE.md` first. It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
 
+## Smart camera in every film (strict user rule, 2026-11-17)
+The user approved the satellite + drone camera (orbit opening, hops, 3D drone over real terrain, drone move chosen by the kind of place) and made it mandatory: **every future video uses it, without exception.** Never set `"drone": false` or `"opening": false` in a project, never fall back to the flat camera, and keep the director's rules (phases 1-4 below) as the default for every new film. Improvements are welcome; removing or weakening it is not.
+
 ## Render performance (strict, user rule 2026-11-16)
 Always use this PC's full power for every render. Never fall back to the slow single-page path.
 
