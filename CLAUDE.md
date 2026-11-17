@@ -4,6 +4,19 @@
 
 **START HERE:** read `PROJECT_STATE.md` first. It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
 
+## Unforgivable errors (strict user rule, 2026-11-17): fix at the root BEFORE any new film
+The user caught 7 faults in `hormuz-drone-v2` and asked that they never happen again in any video. They are not patched on that film; the root fixes below must be in `engine/` and `director.mjs` (with their gate rules) before the next film renders, then checked by eye on every `look.jpg`.
+
+| # | What the viewer saw | Root cause (found 2026-11-17) | Root fix + gate |
+|---|---|---|---|
+| 1 | Two ships on top of each other (container ship on a tanker, two tankers overlapping) | `ambient()` put the 2nd ship on the SAME lane 1.6 s behind; two lanes in the same water counted as two; the loop ship of the last line was added after ambient | Logic rule 12 «no collision»: sea objects on screen together keep a gap >= their mean length (sampled every 0.1 s). Second ambient ship = the other direction on a parallel lane offset to stay at sea (a real two-way scheme); lanes are «the same water» by mean distance, not by mid-point; no ambient on a line that has a story ship or the loop ship |
+| 2 | A ship hides a place label («جزر السلامة») | `label` z 6 < `sprite` z 6.5 | One deferred text layer: every pill/label of the map (z < 7) is queued and drawn after all map objects, before titles/photos |
+| 3 | A country border crosses another country's label («الكويت») | region labels are drawn inside `region.draw`, so a later region's white stroke covers them | The same deferred text layer |
+| 4 | White patches instead of flags (India and its islands, Japan) | `drawFlag` stretches the flag over the few visible pieces of a country mostly off screen | Flag only if >= 60 % of the country is on screen and its visible part is >= ~260 px both ways (director decides, gate rule 5 refuses otherwise); else a solid colour |
+| 5 | Hazy white strips inside a coloured country (southern China) | the base globe `engine/cache/globe-8k.jpg` (EOX 2016) has cloudy Sentinel strips there; the danger tint lights them | Rebuild the base globe from NASA Blue Marble (public domain), colour-matched to EOX so the patches blend; check coloured regions for strips |
+| 6 | A label cut by the screen edge («ينبع»); a pipeline ending in the desert with no place | `place()` clamps x but a long label near the edge still clips; the pipeline's start was never named or framed | A label is fully inside SAFE or hidden (gate refuses a clipped label); a route/pipeline shows both ends with their names, or the frame holds both |
+| 7 | A ship cut by the frame edge; a frame of plain empty water | the story ship along a continental lane sits wherever its loop puts it | A story ship is inside the frame while its line is spoken (the camera holds it or it starts inside); no frame of water with nothing in it (rule 9 extended to wide shots that show only sea) |
+
 ## Smart camera in every film (strict user rule, 2026-11-17)
 The user approved the satellite + drone camera (orbit opening, hops, 3D drone over real terrain, drone move chosen by the kind of place) and made it mandatory: **every future video uses it, without exception.** Never set `"drone": false` or `"opening": false` in a project, never fall back to the flat camera, and keep the director's rules (phases 1-4 below) as the default for every new film. Improvements are welcome; removing or weakening it is not.
 
