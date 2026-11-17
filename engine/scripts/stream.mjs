@@ -66,7 +66,9 @@ await new Promise(r => srv.on('listening', r));
 const SINK = `http://localhost:${srv.address().port}`;
 console.log(`stream: ${K} frames at ${FPS} fps (${END.toFixed(2)} s${BLEND ? ', blended in the page' : ', tmix to 60 in ffmpeg'}), ${WORKERS} pages, chunks of ${CHUNK}`);
 const ws = Array.from({ length: WORKERS }, (_, i) => spawn('node', [path.join(HERE, 'render.mjs'), proj, 'stream', SINK], { stdio: 'inherit', env: { ...process.env, ...(i ? { QUIET_LOGIC: '1', QUIET: '1' } : {}) } }));
+const prog = setInterval(() => console.log(`PROGRESS ${got}/${K}`), 2000);   // TaleSpark host: render progress for the phone
 const codes = await Promise.all(ws.map(w => new Promise(r => w.on('close', r))));
+clearInterval(prog);
 const tRender = (Date.now() - t0) / 1000;
 if (codes.some(c => c)) { console.log('a render page failed'); ff.stdin.destroy(); ff.kill(); srv.close(); process.exit(1); }
 if (got !== K) { console.log(`only ${got} of ${K} frames arrived`); ff.kill(); srv.close(); process.exit(1); }

@@ -7,6 +7,9 @@
   python build.py <project> stills 0.5,1.4,2.9     render chosen moments to <project>/check and tile check/sheet.jpg
   python build.py <project> look [t1,t2,...]       item 9: the contact sheet after an edit, moments picked from the story (3 pages) -> check/look.jpg
   python build.py <project> draft                  item 9: story draft from script + timing (draft.mjs) -> web/story.draft.js
+  python build.py <project> check                  TaleSpark 2.0: reply.txt (Gemini) -> script.txt + shotplan.json + the script check
+  python build.py <project> saycheck [audio]       TaleSpark 2.0: the voice against the script (whisper large-v3), exit 2 on a wrong word
+  python build.py <project> director               TaleSpark 2.0: shotplan.json -> web/story.js (director.mjs) + the logic gate, rejects removed
   python build.py <project> shots                  one still from the middle of every shot -> check/shots.jpg
   python build.py <project> frames [fps]           render every frame (default 120 fps, blended to 60 for motion blur)
   python build.py <project> final                  mix (cues.json) -> master -14 LUFS / -1.8 dBTP -> encode 60 fps -> <project>/<name>.mp4 + check/final.jpg
@@ -79,6 +82,42 @@ if step in ('prep', 'all'):
     with stage('prep.patches'): sh([PY, str(HERE / 'prep.py'), str(proj)])
 if step == 'draft':
     with stage('draft'): sh(['node', str(HERE / 'draft.mjs'), str(proj)])
+if step == 'check':   # TaleSpark 2.0 item 4: Gemini's reply (reply.txt) -> script.txt, sources, notes, shotplan.json + the script check
+    sec = cfg.get('seconds'); args = ['--seconds', str(sec)] if sec else []
+    with stage('check'): r = subprocess.run(['node', str(HERE / 'script_check.mjs'), 'parse', str(proj / 'reply.txt'), str(proj), *args])
+    if r.returncode: sys.exit(r.returncode)
+if step == 'saycheck':   # item 4: does the voice say the script? (whisper large-v3 on the GPU against script.txt)
+    with stage('saycheck'): sh([PY, str(HERE / 'saycheck.py'), str(proj), *sys.argv[3:4]])
+if step == 'director':
+    # item 5: the automatic director writes web/story.js from the shot plan, then the logic gate judges it. What the gate
+    # rejects is removed (director.drop.json, matched by kind and time) and the story is written again, at most 4 rounds.
+    # The gate is never bypassed: a reject that cannot be matched to an item stops the build.
+    world = json.loads((HERE.parent / 'data' / 'world.json').read_text(encoding='utf-8'))['countries']
+    EN = {c['en'].lower(): c['a3'] for c in world}
+    dropf = proj / 'director.drop.json'; drops = []; dropf.write_text('[]', encoding='utf-8')
+    for rnd in range(4):
+        with stage(f'director.write{rnd + 1}'): sh(['node', str(HERE / 'director.mjs'), str(proj)])
+        with stage(f'director.gate{rnd + 1}'):
+            r = subprocess.run(['node', str(HERE / 'render.mjs'), str(proj), 'cams', '30'], capture_output=True, text=True, encoding='utf-8', errors='replace', env={**os.environ, 'QUIET_LOGIC': '1', 'PAGE': cfg.get('page', 'index.html')})
+        fails = [l.strip() for l in r.stdout.splitlines() if re.search(r'FAIL \(\d+\)', l)]
+        other = '' if fails else (r.stdout + r.stderr)[-1500:] if r.returncode else ''
+        if not fails and not r.returncode: print(f'director: the logic gate passed (round {rnd + 1}), {len(drops)} item(s) removed', flush=True); break
+        if other: print(other); sys.exit('director: the story does not load (not a logic reject), see above')
+        items = json.loads((proj / 'director.json').read_text(encoding='utf-8'))['items']
+        for f in fails:
+            tt = [float(x) for x in re.findall(r'(\d+\.\d+) s', f)]; low = f.lower()
+            keys = [a3 for en, a3 in EN.items() if en in low] + re.findall(r"'([a-z_]+)'", f) + [k for k in ('measure', 'number', 'label', 'flag', 'path', 'lane') if k in low]
+            code = int(re.search(r'FAIL \((\d+)\)', f).group(1))   # the gate's rule number says what kind of item it is
+            keys += {1: ['craft'], 2: ['craft', 'route'], 3: ['craft'], 4: ['craft'], 5: ['country', 'place'], 6: ['craft', 'danger'], 7: ['number', 'country'], 8: ['craft']}.get(code, [])
+            keys += [w for w in re.findall(r'[a-z_]{4,}', low) if any(w in i['why'] for i in items)]
+            cand = [i for i in items if i['t'] is not None and i['id'] not in drops and (not tt or min(abs(i['t'] - x) for x in tt) <= .8)]
+            best = [i for i in cand if any(k.lower() in i['why'].lower() for k in keys)] or ([] if keys else cand)
+            if not best and any(i['id'] in drops and (not tt or min(abs(i['t'] - x) for x in tt) <= .8) for i in items): continue   # the same conflict, already removed this round
+            if not best: print('  gate:', f); sys.exit('director: a logic reject matches no item of the story; fix the director or the plan')
+            best.sort(key=lambda i: min(abs(i['t'] - x) for x in tt) if tt else 0); drops.append(best[0]['id'])
+            print(f'  gate rejected {best[0]["id"]} ({best[0]["why"]}): {f}', flush=True)
+        dropf.write_text(json.dumps(drops), encoding='utf-8')
+    else: sys.exit('director: the logic gate still fails after 4 rounds')
 if step == 'look':
     # item 9: one contact sheet after every story edit. With no times, the moments are picked from the story itself: each
     # title, number, region, label, photo, sprite and ruler 0.6 s after it appears (the busiest frames for overlaps), plus
