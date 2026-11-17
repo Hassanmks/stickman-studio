@@ -110,7 +110,8 @@ LINES.forEach(([a, b], li) => {
         if (dec) say = clean(WORDS[i + vals.lastIndexOf(big)][0]); }   // 12.65 is never spoken as such: tie it to its scale word
       else if (SCALE[last] && vals.length > 1) { to = val / last; fmt = `# ${SCALE[last]}`; }
       if (unitKm) { fmt = '# كم'; k = j + 1; } else if (pct) { fmt = '#%'; k = nxt === 'في' ? j + 2 : j + 1; }
-      const sub = []; for (let q = k; q <= b && sub.length < 5; q++) { sub.push(clean(WORDS[q][0])); if (/[،,؛;:.!?؟…]$/.test(WORDS[q][0])) break; }
+      const sub = []; if (!/[،,؛;:.!?؟…]$/.test(WORDS[k - 1][0])) for (let q = k; q <= b && sub.length < 5; q++) {   // a pause right after the number or its unit ends it: the next clause is not its sub-line
+        sub.push(clean(WORDS[q][0])); if (/[،,؛;:.!?؟…]$/.test(WORDS[q][0])) break; }
       const dup = numbersSeen.some(x => x.to === to && x.fmt === fmt); numbersSeen.push({ to, fmt });
       ents.push({ kind: 'number', i, to, fmt, sub: sub.join(' '), dup, end: k - 1, dec, say }); i = k - 1; continue;
     }

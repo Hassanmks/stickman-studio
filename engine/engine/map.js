@@ -228,10 +228,22 @@ function landMaskCPU() {   // white land on black, quarter resolution, same proj
 const LMK = (() => {
   let nv = 0, ni = 0; for (const c of WORLD.countries) for (const r of c.r) { const n = r.length / 2; nv += n; if (n >= 3) ni += (n - 2) * 3; }
   const V = new Float32Array(nv * 2), I = new Uint32Array(ni); let v = 0, k = 0;
+  const RG = [];   // every ring: its triangles in I and its box, to find the one around the camera's antipode (below)
   for (const c of WORLD.countries) for (const r of c.r) {
-    const n = r.length / 2, b = v; for (let i = 0; i < r.length; i++) V[v * 2 + i] = r[i] / 1e4; v += n;
+    const n = r.length / 2, b = v, k0 = k; for (let i = 0; i < r.length; i++) V[v * 2 + i] = r[i] / 1e4; v += n;
     for (let i = 1; i < n - 1; i++) { I[k++] = b; I[k++] = b + i; I[k++] = b + i + 1; }
+    if (n >= 3) { let w = 1e9, so = 1e9, e = -1e9, no = -1e9; for (let i = 0; i < r.length; i += 2) { w = Math.min(w, r[i]); e = Math.max(e, r[i]); so = Math.min(so, r[i + 1]); no = Math.max(no, r[i + 1]); }
+      RG.push({ r, k0, kn: k - k0, bb: [w / 1e4, so / 1e4, e / 1e4, no / 1e4] }); }
   }
+  // A ring around the point opposite the camera (Gibraltar's antipode is New Zealand) is all behind the globe; pushed to the
+  // horizon, its points wind once around the whole disk and the nonzero rule turns the mask inside out (2026-11-17, Dakhla
+  // film, 46-54 s: every sea pixel counted as land, so the coastal water stayed near black). Such a ring is drawn a second
+  // time with the stencil ops swapped, which cancels it; if part of it is visible the frame uses the Canvas2D mask instead.
+  const inRing = (r, x, y) => { let ins = false; for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const xi = r[i], yi = r[i + 1], xj = r[j], yj = r[j + 1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
+  const antiRings = () => { let lo = C.l0 / D2R + 180; lo = ((lo + 180) % 360 + 360) % 360 - 180; const la = -C.p0 / D2R, out = [];
+    for (const g of RG) if (lo >= g.bb[0] && lo <= g.bb[2] && la >= g.bb[1] && la <= g.bb[3] && inRing(g.r, lo * 1e4, la * 1e4)) out.push(g);
+    return out; };
+  const frontOf = g => { const r = g.r; for (let i = 0; i < r.length; i += 2) { const l = r[i] / 1e4 * D2R - C.l0, p = r[i + 1] / 1e4 * D2R; if (C.sp * Math.sin(p) + C.cp * Math.cos(p) * Math.cos(l) >= 0) return true; } return false; };
   const mw = W / 4, mh = H / 4;
   const vs = `#version 300 es
   in vec2 ll; uniform float l0d; uniform float p0d; uniform float sp0; uniform float cp0; uniform float k; uniform vec2 ctr; uniform vec2 res;
@@ -278,6 +290,10 @@ const LMK = (() => {
     gl.uniform1f(u('l0d'), C.l0 / D2R); gl.uniform1f(u('p0d'), C.p0 / D2R); gl.uniform1f(u('sp0'), C.sp); gl.uniform1f(u('cp0'), C.cp); gl.uniform1f(u('k'), C.k);
     gl.uniform2f(u('ctr'), C.cx, C.cy); gl.uniform2f(u('res'), W, H);
     gl.drawElements(gl.TRIANGLES, I.length, gl.UNSIGNED_INT, 0);
+    const anti = antiRings();
+    if (anti.some(frontOf)) { gl.disable(gl.STENCIL_TEST); gl.colorMask(true, true, true, true); gl.bindVertexArray(null); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(prog); gl.viewport(0, 0, W, H); return false; }
+    if (anti.length) { gl.stencilOpSeparate(gl.FRONT, gl.KEEP, gl.KEEP, gl.DECR_WRAP); gl.stencilOpSeparate(gl.BACK, gl.KEEP, gl.KEEP, gl.INCR_WRAP);
+      for (const g of anti) gl.drawElements(gl.TRIANGLES, g.kn, gl.UNSIGNED_INT, g.k0 * 4); }
     gl.colorMask(true, true, true, true); gl.stencilFunc(gl.NOTEQUAL, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
     gl.useProgram(pq); gl.bindVertexArray(vq); gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.disable(gl.STENCIL_TEST); gl.bindVertexArray(null);
@@ -285,10 +301,10 @@ const LMK = (() => {
     gl.blitFramebuffer(0, 0, mw, mh, 0, 0, mw, mh, gl.COLOR_BUFFER_BIT, gl.NEAREST);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.useProgram(prog); gl.viewport(0, 0, W, H);
-    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, GT); gl.uniform1i(U('mask'), 7);
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, GT); gl.uniform1i(U('mask'), 7); return true;
   } };
 })();
-const landMask = () => CFG.mask === 'cpu' || window.MASK_CPU ? landMaskCPU() : LMK.draw();
+const landMask = () => CFG.mask === 'cpu' || window.MASK_CPU || !LMK.draw() ? landMaskCPU() : true;
 function pickPatches() {   // the patches this camera (C) draws with, in the order the shader tries them
   // patches that matter for this frame: those that intersect the view and are sharper than the base, finest first
   const hx = Math.min(W / 2 / C.k, 1.6) / D2R / Math.max(.2, C.cp), hy = Math.min(H / C.k, 1.6) / D2R;
