@@ -94,6 +94,7 @@ fun MadarApp(store: Store, kit: Kit, shared: List<Uri>, onShared: () -> Unit) {
     LaunchedEffect(store.token, store.hosts) { while (true) { pc = withContext(Dispatchers.IO) { if (store.paired) host.status() else null }; pcChecked = true; delay(6000) } }
     LaunchedEffect(jobId) { while (jobId.isNotBlank()) { job = withContext(Dispatchers.IO) { runCatching { host.job(jobId) }.getOrNull() } ?: job
         val st = job?.optString("stage"); delay(if (st == "done" || st == "failed" || st == "review") 6000 else 2000) } }
+    LaunchedEffect(pc != null) { if (pc != null) showSettings = false }   // paired and reachable: the pairing card closes by itself
     // Gemini's reply: caught from the clipboard each time the app comes back
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) { val o = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) { val t = clip(ctx); if (t != null && t != reply && kit.looksLikeReply(t)) { reply = t; store.reply = t; toast(ctx, "التقطتُ ردّ Gemini من الحافظة") } } }

@@ -9,6 +9,8 @@ import org.json.JSONObject
  * written by engine/scripts/app_kit.mjs from the same template and rules as engine/scripts/script_check.mjs).
  */
 class Kit(ctx: Context) {
+    // first: the properties below already call bare(), which needs it (initialisation order: the 2.0.1 crash)
+    private val har = Regex("[\\u064B-\\u0652\\u0670]")
     private val k = JSONObject(ctx.assets.open("madar_kit.json").bufferedReader().readText())
     private val rules = k.getJSONObject("rules")
     private val wps = rules.getDouble("words_per_second")
@@ -65,7 +67,6 @@ class Kit(ctx: Context) {
     }
 
     // ------------------------------------------------------------------ the checks (same rules as script_check.mjs)
-    private val har = Regex("[\\u064B-\\u0652\\u0670]")
     fun bare(w: String) = w.replace(har, "").replace("ـ", "").replace(Regex("[أإآ]"), "ا").replace('ة', 'ه').replace('ى', 'ي').filter { it.isLetterOrDigit() }
     private fun stems(w: String): Set<String> {
         val o = linkedSetOf(bare(w))
