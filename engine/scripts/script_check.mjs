@@ -28,7 +28,7 @@ const numWord = w => [...stems(w)].some(s => NUMW[s] != null);
 // ---------------------------------------------------------------- the prompt
 export function prompt(topic, o = {}) {
   const sec = +o.seconds || 90, wps = RULES.words_per_second;
-  const places = Object.entries(PL.places).filter(([, p]) => p.kind !== 'point').map(([k, p]) => `${k}: ${p.ar}`).join('\n');
+  const places = [...new Set(Object.values(PL.places).filter(p => p.kind !== 'point').map(p => p.ar))].join('، ');   // names only: Gemini writes the script alone (2.2.0)
   const lanes = [...Object.entries(PL.lanes).map(([k, l]) => `${k}: ${l.ar} (مسار بحري)`), ...Object.entries(PL.pipelines || {}).map(([k, l]) => `${k}: ${l.ar} (أنبوب)`)].join('\n');
   const craft = TOP.filter(k => CRAFT_AR[k]).map(k => `${k}: ${CRAFT_AR[k]}`).join('\n');
   return fs.readFileSync(path.join(ENG, 'prompts', 'gemini_script.txt'), 'utf8')
@@ -72,8 +72,8 @@ export function planLine(l) {
 // ---------------------------------------------------------------- the checks
 export function check(R, o = {}) {
   const P = [], add = (level, line, text) => P.push({ level, line, text });
-  if (R.found.length === 1 && R.found[0] === 'السكربت' && !R.plan.length) add('warn', 0, 'السكربت وحده دون خطة اللقطات: سيُخرجه الحاسوب من الكلمات (الأماكن والدول والأرقام). للإخراج الأدق انسخ ردّ Gemini كاملاً.');
-  else for (const k of RULES.sections) if (!R.found.includes(k)) add(k === 'السكربت' ? 'error' : 'warn', 0, `القسم [${k}] غير موجود في الرد.`);
+  // 2.2.0: the script alone is the normal reply (Gemini writes only the narration); sections are checked only when a reply has them
+  if (!(R.found.length === 1 && R.found[0] === 'السكربت' && !R.plan.length)) for (const k of RULES.sections) if (!R.found.includes(k)) add(k === 'السكربت' ? 'error' : 'warn', 0, `القسم [${k}] غير موجود في الرد.`);
   const sc = R.script, words = sc.join(' ').split(/\s+/).filter(Boolean), nW = words.length, est = nW / RULES.words_per_second;
   if (o.seconds) { const sec = +o.seconds; if (est < sec * .8 || est > sec * 1.2) add('warn', 0, `الطول ${nW} كلمة، أي نحو ${Math.round(est)} ثانية، والمطلوب نحو ${sec} ثانية (بين ${Math.round(sec * RULES.words_per_second * .9)} و${Math.round(sec * RULES.words_per_second * 1.08)} كلمة).`); }
   if (!sc.length) return finish(P, R, nW, est);

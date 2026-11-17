@@ -193,7 +193,7 @@ private fun StudioTab(m: Madar, openSettings: () -> Unit) {
         // 2. Gemini
         Card { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("السكربت من Gemini", fx = "sparkles")
-            Text("يُكتب الأمر كاملاً: الخطّاف، والفصحى، والطول، والأرقام كلمات، والوقف، والتشكيل، وخطة اللقطات. اختر النموذج في Gemini وأرسل، ثم انسخ الرد كاملاً وعُد إلى هنا.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("الأمر جاهز بكل القواعد (الخطّاف، والفصحى، والأرقام كلمات، والوقف، والتشكيل)، وGemini يكتب السكربت وحده. أرسل، ثم اضغط زر «نسخ» تحت ردّه وعُد إلى هنا: يُلتقط وحده.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             GoldButton("افتح Gemini والأمر ملصوق", fx = "rocket") { if (topic.isBlank()) m.toast("اكتب الموضوع أولاً", -1) else sendTo(ctx, listOf(GEMINI), kit.prompt(topic, seconds, angle), "https://gemini.google.com/app") }
             GhostButton("الصق الرد من الحافظة", Modifier.fillMaxWidth(), fx = "scroll") { val t = clip(ctx); if (t.isNullOrBlank()) m.toast("الحافظة فارغة", -1) else { reply = t; s.reply = t } }
         } }

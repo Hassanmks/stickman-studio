@@ -81,8 +81,8 @@ class Kit(ctx: Context) {
 
     fun check(r: Reply, seconds: Int?): Report {
         val P = mutableListOf<Problem>(); fun add(e: Boolean, l: Int, t: String) { P.add(Problem(e, l, t)) }
-        if (r.found == listOf(sections[0]) && r.plan.isEmpty()) add(false, 0, "السكربت وحده دون خطة اللقطات: سيُخرجه الحاسوب من الكلمات (الأماكن والدول والأرقام). للإخراج الأدق انسخ ردّ Gemini كاملاً.")
-        else for (s in sections) if (s !in r.found) add(s == sections[0], 0, "القسم [$s] غير موجود في الرد.")
+        // 2.2.0: the script alone is the normal reply; sections are checked only when a reply has them
+        if (!(r.found == listOf(sections[0]) && r.plan.isEmpty())) for (s in sections) if (s !in r.found) add(s == sections[0], 0, "القسم [$s] غير موجود في الرد.")
         val sc = r.script; val nW = sc.joinToString(" ").split(Regex("\\s+")).count { it.isNotBlank() }; val est = nW / wps
         if (seconds != null && (est < seconds * .8 || est > seconds * 1.2))
             add(false, 0, "الطول $nW كلمة، أي نحو ${est.toInt()} ثانية، والمطلوب نحو $seconds ثانية (بين ${Math.round(seconds * wps * .9)} و${Math.round(seconds * wps * 1.08)} كلمة).")
@@ -127,5 +127,11 @@ class Kit(ctx: Context) {
     }
 
     /** a reply worth catching from the clipboard: it has the script section */
-    fun looksLikeReply(t: String?) = t != null && t.length > 80 && t.contains("[${sections[0]}]") || (t != null && t.contains(sections[0]) && t.contains(sections[3]))
+    /** what to catch from the clipboard on return: Gemini's script (Arabic narration, several lines, punctuation), never our own prompts */
+    fun looksLikeReply(t: String?): Boolean {
+        if (t == null || t.length < 120 || t.contains("أنت كاتب سكربتات") || t.contains("{{") || t.contains("راجعتُ السكربت")) return false
+        if (t.contains(sections[0]) && t.contains(sections[3])) return true
+        val lines = t.lines().filter { it.isNotBlank() }; val arabic = t.count { it in '؀'..'ۿ' }
+        return lines.size >= 3 && arabic > t.length * .5 && Regex("[.!؟…]").containsMatchIn(t)
+    }
 }

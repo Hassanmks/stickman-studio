@@ -20,8 +20,8 @@ android {
         applicationId = "ma.stickman.studio"
         minSdk = 26
         targetSdk = 35
-        versionCode = 40
-        versionName = "2.1.2"
+        versionCode = 41
+        versionName = "2.2.0"
     }
 
     signingConfigs {
