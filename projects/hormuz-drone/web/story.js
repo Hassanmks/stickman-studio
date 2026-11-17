@@ -14,9 +14,9 @@ cam(T('كله#3.end'), { lon: 56.435, lat: 26.68, span: 0.62, ease: 'sine', dron
 cam(T('النفط#2+0.02'), { lon: 53.81, lat: 26.02, span: 6.86, ease: 'io' });   // hop: up over the map (544 km)
 cam(T('خُمْسُ#2+0.43'), { lon: 51.184, lat: 25.36, span: 2.4, ease: 'io', dive: true });   // QAT
 cam(T('نفسه.end'), { lon: 51.184, lat: 25.36, span: 2.23, ease: 'sine' });   // hold
-cam(T('السعودية+0.35'), { lon: 57.003, lat: 26.182, span: 3.84, ease: 'io', drone: true, heading: -47.1 });   // HORMUZ (drone: along)
-cam(T('هُرمز#2.end'), { lon: 55.997, lat: 27.018, span: 3.57, ease: 'sine', drone: true, heading: -47.1 });   // hold
-cam(T('والمشكلة+0.9'), { lon: 56.06, lat: 26.983, span: 1.6, ease: 'io', drone: true, heading: -47.1 });   // BANDAR_ABBAS (drone: orbit)
+cam(T('السعودية+0.35'), { lon: 45.536, lat: 26.873, span: 21.12, ease: 'io' });   // HORMUZ + SAU+KWT+IRQ+ARE (satellite: a list of countries, edited by hand: the drone hid them)
+cam(T('هُرمز#2.end'), { lon: 45.536, lat: 26.873, span: 19.64, ease: 'sine' });   // hold
+cam(T('والمشكلة+0.9'), { lon: 56.06, lat: 26.983, span: 1.6, ease: 'io', dive: true, drone: true, heading: -47.1 });   // BANDAR_ABBAS (drone: orbit)
 cam(T('قِشم.end'), { lon: 56.06, lat: 26.983, span: 1.49, ease: 'sine', drone: true, heading: -15.1 });   // hold
 cam(T('تعرّضت+0.38'), { lon: 53.667, lat: 32.415, span: 22, ease: 'io' });   // IRN
 cam(T('المضيق#2.end'), { lon: 53.667, lat: 32.415, span: 20.46, ease: 'sine' });   // hold
@@ -60,7 +60,10 @@ title('خُمْسُ الغازِ المُسال', { at: T('وليس'), until: T(
 region('QAT', { at: T('قطر'), style: 'vivid', color: '#ffd23f', opacity: .5, label: 'قطر', labelPill: '#111a2b', say: 'قطر', until: T('السعودية') });   // d17
 
 // ---------------------------------------------------------------- 48.88-58.34 s  «السعودية، والكويت، والعراق، والإمارات… كلها تصدّر من الخليج. والخليج ليس له إلا »
-flagPin('SAU', spot('HORMUZ'), { at: T('السعودية'), in: 'sea', say: 'السعودية', until: T('والمشكلة') });   // d18
+title('باب واحد!', { at: T('السعودية'), until: T('هُرمز#2-0.1'), color: 'yellow', anim: 'words' });   // d18a (from hormuz-auto, approved)
+region('SAU', { at: T('السعودية'), flag: true, label: 'السعودية', labelPill: '#111a2b', say: 'السعودية', until: T('والمشكلة') });   // d18
+region('KWT', { at: T('والكويت'), style: 'vivid', color: '#ffd23f', opacity: .5, label: 'الكويت', labelPill: '#111a2b', say: 'والكويت', until: T('والمشكلة') });   // d18b
+region('IRQ', { at: T('والعراق'), style: 'vivid', color: '#2fd6c8', opacity: .5, label: 'العراق', labelPill: '#111a2b', say: 'والعراق', until: T('والمشكلة') });   // d18c
 region('ARE', { at: T('والإمارات'), flag: true, label: 'الإمارات', labelPill: '#111a2b', say: 'والإمارات', until: T('والمشكلة') });   // d19
 label(spot('HORMUZ'), 'مضيق هرمز', { at: T('هُرمز#2'), pill: '#111a2b', color: '#ffd23f', until: T('والمشكلة'), anim: 'bubble', in: 'sea' });   // d20
 
