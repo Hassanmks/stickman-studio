@@ -27,6 +27,13 @@ Hardware: NVIDIA RTX 4060 Laptop (8 GB VRAM), Intel i7-12650H (10 cores / 16 thr
 5. Refine `web/story.js` with `spot('KEY')`, `lane('KEY')`, `pipeline('KEY')` from `engine/data/places.json` (never type coordinates that are already there; add new places there with a source and run `py -3 engine/scripts/places.py`). After every edit: `build.py <p> look` (moments picked from the story, 3 pages, ~8 s; patches reused from the shared cache when they cover the view) and read `check/look.jpg`. Every long camera move needs a hold key, or the shot drifts away while it is being described.
 6. `build.py <p> go`.
 
+**TaleSpark 2.0 «مَدار» (2026-11-17): the phone path. Gemini writes, the PC makes the film.**
+- Prompt: `node engine/scripts/script_check.mjs prompt "<topic>" --seconds 90` (template `engine/prompts/gemini_script.txt`; the reply has 4 sections incl. `[خطة اللقطات]`, one plan line per script line).
+- `build.py <p> check` (reply.txt -> script.txt, sources, notes, shotplan.json, check.json), voice as before, `build.py <p> saycheck` (whisper large-v3 vs the script), `build.py <p> director` (shotplan -> story.js + the logic gate, rejects removed automatically), `look`, `go`.
+- The PC host: `py -3 host/host.py` (port 8765, token in host/pairing.json, `--pair` prints the phone link); it runs check -> voice -> saycheck -> director -> look [-> wait for approval] -> go for each job from the app.
+- The app: `android/` (TaleSpark 2.0.0, same package + key as 1.3.8). After changing prompts, rules, places or sprites run `node engine/scripts/app_kit.mjs`, then `cd android && ./gradlew assembleRelease`.
+- The channel logo «مَدار / MD» is drawn by map.js on every film (`"logo": false` hides it).
+
 **Old path (v6 and before), kept for reference:**
 
 - Frames: `py -3 engine/scripts/build.py <project> frames 120`. It runs **4 parallel headless Chromium workers** by default (`workers` in config.json, or env `WORKERS`), each with **3 JPEG encoder Web Workers** (env `ENCODERS`). The page draws a frame (~16 ms), hands an ImageBitmap to an encoder thread and draws the next one at once; encoders POST raw JPEG bytes to render.mjs's server (no toDataURL, no base64). Output is pixel-identical to the old path (`SERIAL=1` still runs it).
