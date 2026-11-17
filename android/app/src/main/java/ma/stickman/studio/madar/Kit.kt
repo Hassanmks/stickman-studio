@@ -45,10 +45,14 @@ class Kit(ctx: Context) {
     fun parse(text: String): Reply {
         val head = Regex("^[\\s#*_>\\-]*\\[?\\s*(${sections.joinToString("|")})\\s*\\]?[\\s*_:：]*$")
         val S = linkedMapOf<String, MutableList<String>>(); var cur: String? = null
-        for (raw in text.replace("\r", "").split("\n")) {
+        // the Gemini app copies its answer as markdown: \[السكربت\], \*, \- … the backslashes go first (2.1.1)
+        val clean = text.replace("\r", "").replace(Regex("""\\([\[\]*_#>.()|!+\-])"""), "$1")
+        for (raw in clean.split("\n")) {
             val m = head.find(raw.trim()); if (m != null) { cur = m.groupValues[1]; S.getOrPut(cur) { mutableListOf() }; continue }
             cur?.let { S[it]!!.add(raw) }
         }
+        // 2.1.1: the script alone (no section headers at all) is a script too: the director then works from the words
+        if (S.isEmpty()) S[sections[0]] = clean.split("\n").toMutableList()
         fun lines(k: String) = (S[k] ?: emptyList()).map { it.trim() }.filter { it.isNotEmpty() }
         val script = lines(sections[0]).map { it.replace(Regex("^\\s*(?:[-*•]\\s+|\\d+[.)]\\s+)"), "").replace("**", "").replace("...", "…").trim() }.filter { it.isNotEmpty() }
         val plan = lines(sections[3]).filter { '|' in it }.map(::planLine)
@@ -77,7 +81,8 @@ class Kit(ctx: Context) {
 
     fun check(r: Reply, seconds: Int?): Report {
         val P = mutableListOf<Problem>(); fun add(e: Boolean, l: Int, t: String) { P.add(Problem(e, l, t)) }
-        for (s in sections) if (s !in r.found) add(true, 0, "القسم [$s] غير موجود في الرد.")
+        if (r.found == listOf(sections[0]) && r.plan.isEmpty()) add(false, 0, "السكربت وحده دون خطة اللقطات: سيُخرجه الحاسوب من الكلمات (الأماكن والدول والأرقام). للإخراج الأدق انسخ ردّ Gemini كاملاً.")
+        else for (s in sections) if (s !in r.found) add(s == sections[0], 0, "القسم [$s] غير موجود في الرد.")
         val sc = r.script; val nW = sc.joinToString(" ").split(Regex("\\s+")).count { it.isNotBlank() }; val est = nW / wps
         if (seconds != null && (est < seconds * .8 || est > seconds * 1.2))
             add(false, 0, "الطول $nW كلمة، أي نحو ${est.toInt()} ثانية، والمطلوب نحو $seconds ثانية (بين ${Math.round(seconds * wps * .9)} و${Math.round(seconds * wps * 1.08)} كلمة).")

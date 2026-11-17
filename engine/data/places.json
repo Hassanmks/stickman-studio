@@ -1,84 +1,1677 @@
 {
  "about": "Maven Map places (speed plan item 9, 2026-11-17). Every point is [lon, lat]. 'in' = the country (ISO a3) the spot is in, or 'sea'; 'span' = a good camera span (degrees across the frame) to show it. Lanes are sea routes drawn mid-water. Run py -3 engine/scripts/places.py after any change: every place is tested against the border data (same rule as the engine's logic() item 5) and every lane is smoothed exactly as path() does and sampled every ~4 km against the coastlines (logic() item 2). 'aka' = the spoken forms the story draft generator looks for in the script. 'off_map' = too small for the 1:10m borders (visible on the satellite picture only), so its 'in' is not testable.",
  "places": {
-  "BAB_EL_MANDEB": { "ar": "مضيق باب المندب", "en": "Bab el-Mandeb", "aka": ["المندب", "باب المندب"], "pt": [43.355, 12.562], "in": "sea", "kind": "strait", "span": 2.4, "src": "middle of the main (west) channel, v6 (checked on the satellite picture)" },
-  "PERIM": { "ar": "جزيرة بريم", "en": "Perim (Mayyun)", "aka": ["بريم", "ميون"], "pt": [43.42, 12.653], "in": "YEM", "kind": "island", "span": 0.85, "src": "v6" },
-  "PERIM_E": { "ar": "طرف بريم الشرقي", "en": "Perim, east tip", "pt": [43.447, 12.662], "in": "YEM", "kind": "point", "span": 0.34, "src": "v6" },
-  "PERIM_W": { "ar": "طرف بريم الغربي", "en": "Perim, west tip", "pt": [43.39, 12.64], "in": "YEM", "kind": "point", "span": 0.5, "src": "v6" },
-  "RAS_MENHELI": { "ar": "رأس منهالي", "en": "Ras Menheli (Yemen, facing Perim)", "pt": [43.467, 12.685], "in": "YEM", "kind": "point", "span": 0.34, "src": "v6: 3.4 km from Perim's east tip" },
-  "RAS_SIYYAN": { "ar": "رأس سيان", "en": "Ras Siyyan", "pt": [43.313, 12.478], "in": "DJI", "kind": "point", "span": 0.6, "src": "v6: 19.9 km from Perim's west tip" },
-  "CAMP_LEMONNIER": { "ar": "معسكر ليمونييه", "en": "Camp Lemonnier (US base)", "aka": ["ليمونييه"], "pt": [43.149, 11.544], "in": "DJI", "kind": "base", "span": 0.6, "src": "11°32'37\"N 43°08'55\"E, next to Djibouti airport (v6)" },
-  "PLA_DJIBOUTI": { "ar": "القاعدة الصينية في جيبوتي", "en": "PLA support base, Doraleh", "pt": [43.0647, 11.5914], "in": "DJI", "kind": "base", "span": 0.6, "src": "11°35'29\"N 43°03'53\"E (v6)" },
-  "DJIBOUTI_CITY": { "ar": "مدينة جيبوتي", "en": "Djibouti city", "pt": [43.145, 11.589], "in": "DJI", "kind": "city", "span": 1.2, "src": "city centre" },
-  "SANAA": { "ar": "صنعاء", "en": "Sanaa", "aka": ["صنعاء"], "pt": [44.207, 15.354], "in": "YEM", "kind": "capital", "span": 3, "src": "city centre" },
-  "ADEN": { "ar": "عدن", "en": "Aden", "aka": ["عدن"], "pt": [45.03, 12.8], "in": "YEM", "kind": "port", "span": 1.5, "src": "city centre" },
-  "HODEIDAH": { "ar": "الحديدة", "en": "Hodeidah", "aka": ["الحديدة"], "pt": [42.954, 14.798], "in": "YEM", "kind": "port", "span": 1.5, "src": "city centre" },
-  "YEMEN_INLAND_SW": { "ar": "جنوب غرب اليمن", "en": "south-west Yemen, inland", "pt": [43.98, 12.98], "in": "YEM", "kind": "point", "span": 2.6, "src": "v6 missile launch spot" },
-  "KHAWKHAH": { "ar": "الخوخة", "en": "Al Khawkhah coast", "pt": [43.31, 13.78], "in": "YEM", "kind": "point", "span": 2.6, "src": "v6 drone launch spot" },
-  "SUEZ": { "ar": "قناة السويس", "en": "Suez", "aka": ["السويس", "قناة السويس"], "pt": [32.56, 29.92], "in": "EGY", "kind": "canal", "span": 6, "src": "v6 label point, south entrance of the canal" },
-  "PORT_SAID": { "ar": "بورسعيد", "en": "Port Said", "aka": ["بورسعيد"], "pt": [32.3, 31.26], "in": "EGY", "kind": "port", "span": 2, "src": "city centre" },
-  "CAIRO": { "ar": "القاهرة", "en": "Cairo", "aka": ["القاهرة"], "pt": [31.236, 30.044], "in": "EGY", "kind": "capital", "span": 3, "src": "city centre" },
-  "HORMUZ": { "ar": "مضيق هرمز", "en": "Strait of Hormuz", "aka": ["هرمز", "مضيق هرمز"], "pt": [56.5, 26.6], "in": "sea", "kind": "strait", "span": 2.4, "src": "Wikipedia: 26°36'N 56°30'E" },
-  "LARAK": { "ar": "جزيرة لارك", "en": "Larak island", "aka": ["لارك"], "pt": [56.365, 26.86], "in": "IRN", "kind": "island", "span": 0.6, "src": "island centre (border data ring 56.32-56.41 E, 26.83-26.89 N)" },
-  "LARAK_S": { "ar": "طرف لارك الجنوبي", "en": "Larak, south tip", "pt": [56.341, 26.8276], "in": "IRN", "kind": "point", "span": 0.6, "src": "south tip in the border data; the narrowest point of the strait runs from here to the Quoin islands" },
-  "QUOIN": { "ar": "جزر السلامة", "en": "Quoin islands (Great Quoin / Mumar)", "aka": ["السلامة"], "pt": [56.505, 26.5], "in": "OMN", "off_map": true, "kind": "island", "span": 0.6, "src": "Wikipedia Quoin Islands: archipelago 26°29'39\"N 56°31'45\"E, Great Quoin (Mumar) the westernmost; 39 km (21 nmi) from Larak = the narrowest width of the strait" },
-  "MUSANDAM_TIP": { "ar": "رأس مسندم", "en": "Musandam, north tip", "aka": ["مسندم"], "pt": [56.3638, 26.386], "in": "OMN", "kind": "point", "span": 0.8, "src": "north tip in the border data (49 km from Larak's south tip)" },
-  "KHASAB": { "ar": "خصب", "en": "Khasab", "aka": ["خصب"], "pt": [56.248, 26.18], "in": "OMN", "kind": "port", "span": 1, "src": "town centre, Musandam" },
-  "HORMUZ_ISLAND": { "ar": "جزيرة هرمز", "en": "Hormuz island", "pt": [56.46, 27.065], "in": "IRN", "kind": "island", "span": 0.6, "src": "island centre (border data ring 56.43-56.51 E, 27.04-27.11 N)" },
-  "QESHM": { "ar": "جزيرة قشم", "en": "Qeshm island", "aka": ["قشم"], "pt": [55.85, 26.78], "in": "IRN", "kind": "island", "span": 1.6, "src": "middle of the island (border data ring 55.27-56.29 E, 26.54-27.00 N)" },
-  "BANDAR_ABBAS": { "ar": "بندر عباس", "en": "Bandar Abbas", "aka": ["عباس", "بندر عباس"], "pt": [56.27, 27.185], "in": "IRN", "kind": "port", "span": 1, "src": "city centre (27°11'N 56°16'E)" },
-  "JASK": { "ar": "جاسك", "en": "Jask", "aka": ["جاسك"], "pt": [57.77, 25.645], "in": "IRN", "kind": "port", "span": 1, "src": "town centre; end of the Goreh-Jask pipeline" },
-  "GREATER_TUNB": { "ar": "طنب الكبرى", "en": "Greater Tunb", "aka": ["طنب"], "pt": [55.305, 26.265], "in": "IRN", "off_map": true, "kind": "island", "span": 0.5, "src": "26°16'N 55°18'E; held by Iran, claimed by the UAE" },
-  "ABU_MUSA": { "ar": "أبو موسى", "en": "Abu Musa", "aka": ["موسى"], "pt": [55.03, 25.875], "in": "IRN", "kind": "island", "span": 0.5, "src": "border data ring 55.01-55.05 E, 25.85-25.89 N; held by Iran, claimed by the UAE" },
-  "FUJAIRAH": { "ar": "الفجيرة", "en": "Fujairah (oil terminal)", "aka": ["الفجيرة", "والفجيرة"], "pt": [56.33, 25.15], "in": "ARE", "kind": "port", "span": 1, "src": "port of Fujairah, Gulf of Oman coast; end of the Habshan-Fujairah pipeline" },
-  "HABSHAN": { "ar": "حبشان", "en": "Habshan", "pt": [53.65, 23.83], "in": "ARE", "kind": "point", "span": 2, "src": "start of the Habshan-Fujairah (ADCOP) pipeline" },
-  "DUBAI": { "ar": "دبي", "en": "Dubai", "aka": ["دبي"], "pt": [55.27, 25.2], "in": "ARE", "kind": "city", "span": 1.5, "src": "city centre" },
-  "JEBEL_ALI": { "ar": "جبل علي", "en": "Jebel Ali port", "pt": [55.03, 25.0], "in": "ARE", "kind": "port", "span": 1, "src": "port" },
-  "ABU_DHABI": { "ar": "أبوظبي", "en": "Abu Dhabi", "aka": ["أبوظبي"], "pt": [54.37, 24.45], "in": "ARE", "kind": "capital", "span": 1.5, "src": "city centre" },
-  "MUSCAT": { "ar": "مسقط", "en": "Muscat", "aka": ["مسقط"], "pt": [58.41, 23.59], "in": "OMN", "kind": "capital", "span": 1.5, "src": "city centre" },
-  "DOHA": { "ar": "الدوحة", "en": "Doha", "aka": ["الدوحة"], "pt": [51.53, 25.29], "in": "QAT", "kind": "capital", "span": 1.5, "src": "city centre" },
-  "RAS_LAFFAN": { "ar": "رأس لفان", "en": "Ras Laffan (LNG)", "aka": ["لفان"], "pt": [51.55, 25.91], "in": "QAT", "kind": "port", "span": 1, "src": "Ras Laffan industrial city, Qatar's LNG export port" },
-  "MANAMA": { "ar": "المنامة", "en": "Manama", "aka": ["المنامة"], "pt": [50.58, 26.22], "in": "BHR", "kind": "capital", "span": 1, "src": "city centre" },
-  "NSA_BAHRAIN": { "ar": "مقر الأسطول الخامس الأمريكي", "en": "NSA Bahrain (US 5th Fleet HQ)", "aka": ["الخامس"], "pt": [50.61, 26.21], "in": "BHR", "kind": "base", "span": 0.6, "src": "Juffair, Manama" },
-  "RIYADH": { "ar": "الرياض", "en": "Riyadh", "aka": ["الرياض"], "pt": [46.72, 24.69], "in": "SAU", "kind": "capital", "span": 3, "src": "city centre" },
-  "RAS_TANURA": { "ar": "رأس تنورة", "en": "Ras Tanura (oil terminal)", "aka": ["تنورة"], "pt": [50.16, 26.64], "in": "SAU", "kind": "port", "span": 1, "src": "Saudi Aramco terminal" },
-  "ABQAIQ": { "ar": "بقيق", "en": "Abqaiq", "aka": ["بقيق"], "pt": [49.68, 25.94], "in": "SAU", "kind": "point", "span": 2, "src": "processing plant; start of the East-West pipeline" },
-  "YANBU": { "ar": "ينبع", "en": "Yanbu", "aka": ["ينبع", "لينبع"], "pt": [38.06, 24.09], "in": "SAU", "kind": "port", "span": 1.5, "src": "Red Sea terminal, end of the East-West pipeline" },
-  "KUWAIT_CITY": { "ar": "مدينة الكويت", "en": "Kuwait City", "pt": [47.98, 29.37], "in": "KWT", "kind": "capital", "span": 1.5, "src": "city centre" },
-  "BASRA": { "ar": "البصرة", "en": "Basra", "aka": ["البصرة"], "pt": [47.81, 30.51], "in": "IRQ", "kind": "port", "span": 1.5, "src": "city centre" },
-  "BAGHDAD": { "ar": "بغداد", "en": "Baghdad", "aka": ["بغداد"], "pt": [44.366, 33.315], "in": "IRQ", "kind": "capital", "span": 3, "src": "city centre" },
-  "KHARG": { "ar": "جزيرة خارك", "en": "Kharg island (oil terminal)", "aka": ["خارك"], "pt": [50.32, 29.25], "in": "IRN", "kind": "island", "span": 0.6, "src": "Iran's main crude terminal" },
-  "TEHRAN": { "ar": "طهران", "en": "Tehran", "aka": ["طهران"], "pt": [51.39, 35.69], "in": "IRN", "kind": "capital", "span": 3, "src": "city centre" },
-  "SINGAPORE_STRAIT": { "ar": "مضيق سنغافورة", "en": "Singapore Strait", "pt": [103.85, 1.2], "in": "sea", "kind": "strait", "span": 1.5, "src": "mid-channel south of Singapore" },
-  "MALACCA": { "ar": "مضيق ملقا", "en": "Strait of Malacca", "aka": ["ملقا"], "pt": [100.5, 3.2], "in": "sea", "kind": "strait", "span": 6, "src": "mid-strait" },
-  "GIBRALTAR": { "ar": "مضيق جبل طارق", "en": "Strait of Gibraltar", "aka": ["طارق", "جبل طارق"], "pt": [-5.6, 35.95], "in": "sea", "kind": "strait", "span": 1.5, "src": "mid-strait" },
-  "BOSPORUS": { "ar": "مضيق البوسفور", "en": "Bosporus", "aka": ["البوسفور"], "pt": [29.06, 41.12], "in": "sea", "off_map": true, "kind": "strait", "span": 0.8, "src": "mid-strait (the 1:10m borders draw it as land: a canal box in the engine)" },
-  "PANAMA_CANAL": { "ar": "قناة بنما", "en": "Panama Canal", "aka": ["بنما"], "pt": [-79.7, 9.1], "in": "PAN", "kind": "canal", "span": 1.5, "src": "Gatun lake area" },
-  "CAPE_GOOD_HOPE": { "ar": "رأس الرجاء الصالح", "en": "Cape of Good Hope", "aka": ["الرجاء"], "pt": [18.47, -34.36], "in": "ZAF", "kind": "point", "span": 6, "src": "34°21'S 18°28'E" },
-  "BEIJING": { "ar": "بكين", "en": "Beijing", "aka": ["بكين"], "pt": [116.4, 39.9], "in": "CHN", "kind": "capital", "span": 4, "src": "city centre" },
-  "SHANGHAI": { "ar": "شنغهاي", "en": "Shanghai", "aka": ["شنغهاي"], "pt": [121.47, 31.23], "in": "CHN", "kind": "port", "span": 3, "src": "city centre" },
-  "NEW_DELHI": { "ar": "نيودلهي", "en": "New Delhi", "aka": ["نيودلهي"], "pt": [77.21, 28.61], "in": "IND", "kind": "capital", "span": 4, "src": "city centre" },
-  "MUMBAI": { "ar": "مومباي", "en": "Mumbai", "aka": ["مومباي"], "pt": [72.88, 19.08], "in": "IND", "kind": "port", "span": 3, "src": "city centre" },
-  "TOKYO": { "ar": "طوكيو", "en": "Tokyo", "aka": ["طوكيو"], "pt": [139.69, 35.69], "in": "JPN", "kind": "capital", "span": 4, "src": "city centre" },
-  "SEOUL": { "ar": "سيول", "en": "Seoul", "aka": ["سيول"], "pt": [126.98, 37.57], "in": "KOR", "kind": "capital", "span": 3, "src": "city centre" },
-  "WASHINGTON": { "ar": "واشنطن", "en": "Washington", "aka": ["واشنطن"], "pt": [-77.04, 38.9], "in": "USA", "kind": "capital", "span": 4, "src": "city centre" }
+  "BAB_EL_MANDEB": {
+   "ar": "مضيق باب المندب",
+   "en": "Bab el-Mandeb",
+   "aka": [
+    "المندب",
+    "باب المندب"
+   ],
+   "pt": [
+    43.355,
+    12.562
+   ],
+   "in": "sea",
+   "kind": "strait",
+   "span": 2.4,
+   "src": "middle of the main (west) channel, v6 (checked on the satellite picture)"
+  },
+  "PERIM": {
+   "ar": "جزيرة بريم",
+   "en": "Perim (Mayyun)",
+   "aka": [
+    "بريم",
+    "ميون"
+   ],
+   "pt": [
+    43.42,
+    12.653
+   ],
+   "in": "YEM",
+   "kind": "island",
+   "span": 0.85,
+   "src": "v6"
+  },
+  "PERIM_E": {
+   "ar": "طرف بريم الشرقي",
+   "en": "Perim, east tip",
+   "pt": [
+    43.447,
+    12.662
+   ],
+   "in": "YEM",
+   "kind": "point",
+   "span": 0.34,
+   "src": "v6"
+  },
+  "PERIM_W": {
+   "ar": "طرف بريم الغربي",
+   "en": "Perim, west tip",
+   "pt": [
+    43.39,
+    12.64
+   ],
+   "in": "YEM",
+   "kind": "point",
+   "span": 0.5,
+   "src": "v6"
+  },
+  "RAS_MENHELI": {
+   "ar": "رأس منهالي",
+   "en": "Ras Menheli (Yemen, facing Perim)",
+   "pt": [
+    43.467,
+    12.685
+   ],
+   "in": "YEM",
+   "kind": "point",
+   "span": 0.34,
+   "src": "v6: 3.4 km from Perim's east tip"
+  },
+  "RAS_SIYYAN": {
+   "ar": "رأس سيان",
+   "en": "Ras Siyyan",
+   "pt": [
+    43.313,
+    12.478
+   ],
+   "in": "DJI",
+   "kind": "point",
+   "span": 0.6,
+   "src": "v6: 19.9 km from Perim's west tip"
+  },
+  "CAMP_LEMONNIER": {
+   "ar": "معسكر ليمونييه",
+   "en": "Camp Lemonnier (US base)",
+   "aka": [
+    "ليمونييه"
+   ],
+   "pt": [
+    43.149,
+    11.544
+   ],
+   "in": "DJI",
+   "kind": "base",
+   "span": 0.6,
+   "src": "11°32'37\"N 43°08'55\"E, next to Djibouti airport (v6)"
+  },
+  "PLA_DJIBOUTI": {
+   "ar": "القاعدة الصينية في جيبوتي",
+   "en": "PLA support base, Doraleh",
+   "pt": [
+    43.0647,
+    11.5914
+   ],
+   "in": "DJI",
+   "kind": "base",
+   "span": 0.6,
+   "src": "11°35'29\"N 43°03'53\"E (v6)"
+  },
+  "DJIBOUTI_CITY": {
+   "ar": "مدينة جيبوتي",
+   "en": "Djibouti city",
+   "pt": [
+    43.145,
+    11.589
+   ],
+   "in": "DJI",
+   "kind": "city",
+   "span": 1.2,
+   "src": "city centre"
+  },
+  "SANAA": {
+   "ar": "صنعاء",
+   "en": "Sanaa",
+   "aka": [
+    "صنعاء"
+   ],
+   "pt": [
+    44.207,
+    15.354
+   ],
+   "in": "YEM",
+   "kind": "capital",
+   "span": 3,
+   "src": "city centre"
+  },
+  "ADEN": {
+   "ar": "عدن",
+   "en": "Aden",
+   "aka": [
+    "عدن"
+   ],
+   "pt": [
+    45.03,
+    12.8
+   ],
+   "in": "YEM",
+   "kind": "port",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "HODEIDAH": {
+   "ar": "الحديدة",
+   "en": "Hodeidah",
+   "aka": [
+    "الحديدة"
+   ],
+   "pt": [
+    42.954,
+    14.798
+   ],
+   "in": "YEM",
+   "kind": "port",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "YEMEN_INLAND_SW": {
+   "ar": "جنوب غرب اليمن",
+   "en": "south-west Yemen, inland",
+   "pt": [
+    43.98,
+    12.98
+   ],
+   "in": "YEM",
+   "kind": "point",
+   "span": 2.6,
+   "src": "v6 missile launch spot"
+  },
+  "KHAWKHAH": {
+   "ar": "الخوخة",
+   "en": "Al Khawkhah coast",
+   "pt": [
+    43.31,
+    13.78
+   ],
+   "in": "YEM",
+   "kind": "point",
+   "span": 2.6,
+   "src": "v6 drone launch spot"
+  },
+  "SUEZ": {
+   "ar": "قناة السويس",
+   "en": "Suez",
+   "aka": [
+    "السويس",
+    "قناة السويس"
+   ],
+   "pt": [
+    32.56,
+    29.92
+   ],
+   "in": "EGY",
+   "kind": "canal",
+   "span": 6,
+   "src": "v6 label point, south entrance of the canal"
+  },
+  "PORT_SAID": {
+   "ar": "بورسعيد",
+   "en": "Port Said",
+   "aka": [
+    "بورسعيد"
+   ],
+   "pt": [
+    32.3,
+    31.26
+   ],
+   "in": "EGY",
+   "kind": "port",
+   "span": 2,
+   "src": "city centre"
+  },
+  "CAIRO": {
+   "ar": "القاهرة",
+   "en": "Cairo",
+   "aka": [
+    "القاهرة"
+   ],
+   "pt": [
+    31.236,
+    30.044
+   ],
+   "in": "EGY",
+   "kind": "capital",
+   "span": 3,
+   "src": "city centre"
+  },
+  "HORMUZ": {
+   "ar": "مضيق هرمز",
+   "en": "Strait of Hormuz",
+   "aka": [
+    "هرمز",
+    "مضيق هرمز"
+   ],
+   "pt": [
+    56.5,
+    26.6
+   ],
+   "in": "sea",
+   "kind": "strait",
+   "span": 2.4,
+   "src": "Wikipedia: 26°36'N 56°30'E"
+  },
+  "LARAK": {
+   "ar": "جزيرة لارك",
+   "en": "Larak island",
+   "aka": [
+    "لارك"
+   ],
+   "pt": [
+    56.365,
+    26.86
+   ],
+   "in": "IRN",
+   "kind": "island",
+   "span": 0.6,
+   "src": "island centre (border data ring 56.32-56.41 E, 26.83-26.89 N)"
+  },
+  "LARAK_S": {
+   "ar": "طرف لارك الجنوبي",
+   "en": "Larak, south tip",
+   "pt": [
+    56.341,
+    26.8276
+   ],
+   "in": "IRN",
+   "kind": "point",
+   "span": 0.6,
+   "src": "south tip in the border data; the narrowest point of the strait runs from here to the Quoin islands"
+  },
+  "QUOIN": {
+   "ar": "جزر السلامة",
+   "en": "Quoin islands (Great Quoin / Mumar)",
+   "aka": [
+    "السلامة"
+   ],
+   "pt": [
+    56.505,
+    26.5
+   ],
+   "in": "OMN",
+   "off_map": true,
+   "kind": "island",
+   "span": 0.6,
+   "src": "Wikipedia Quoin Islands: archipelago 26°29'39\"N 56°31'45\"E, Great Quoin (Mumar) the westernmost; 39 km (21 nmi) from Larak = the narrowest width of the strait"
+  },
+  "MUSANDAM_TIP": {
+   "ar": "رأس مسندم",
+   "en": "Musandam, north tip",
+   "aka": [
+    "مسندم"
+   ],
+   "pt": [
+    56.3638,
+    26.386
+   ],
+   "in": "OMN",
+   "kind": "point",
+   "span": 0.8,
+   "src": "north tip in the border data (49 km from Larak's south tip)"
+  },
+  "KHASAB": {
+   "ar": "خصب",
+   "en": "Khasab",
+   "aka": [
+    "خصب"
+   ],
+   "pt": [
+    56.248,
+    26.18
+   ],
+   "in": "OMN",
+   "kind": "port",
+   "span": 1,
+   "src": "town centre, Musandam"
+  },
+  "HORMUZ_ISLAND": {
+   "ar": "جزيرة هرمز",
+   "en": "Hormuz island",
+   "pt": [
+    56.46,
+    27.065
+   ],
+   "in": "IRN",
+   "kind": "island",
+   "span": 0.6,
+   "src": "island centre (border data ring 56.43-56.51 E, 27.04-27.11 N)"
+  },
+  "QESHM": {
+   "ar": "جزيرة قشم",
+   "en": "Qeshm island",
+   "aka": [
+    "قشم"
+   ],
+   "pt": [
+    55.85,
+    26.78
+   ],
+   "in": "IRN",
+   "kind": "island",
+   "span": 1.6,
+   "src": "middle of the island (border data ring 55.27-56.29 E, 26.54-27.00 N)"
+  },
+  "BANDAR_ABBAS": {
+   "ar": "بندر عباس",
+   "en": "Bandar Abbas",
+   "aka": [
+    "عباس",
+    "بندر عباس"
+   ],
+   "pt": [
+    56.27,
+    27.185
+   ],
+   "in": "IRN",
+   "kind": "port",
+   "span": 1,
+   "src": "city centre (27°11'N 56°16'E)"
+  },
+  "JASK": {
+   "ar": "جاسك",
+   "en": "Jask",
+   "aka": [
+    "جاسك"
+   ],
+   "pt": [
+    57.77,
+    25.645
+   ],
+   "in": "IRN",
+   "kind": "port",
+   "span": 1,
+   "src": "town centre; end of the Goreh-Jask pipeline"
+  },
+  "GREATER_TUNB": {
+   "ar": "طنب الكبرى",
+   "en": "Greater Tunb",
+   "aka": [
+    "طنب"
+   ],
+   "pt": [
+    55.305,
+    26.265
+   ],
+   "in": "IRN",
+   "off_map": true,
+   "kind": "island",
+   "span": 0.5,
+   "src": "26°16'N 55°18'E; held by Iran, claimed by the UAE"
+  },
+  "ABU_MUSA": {
+   "ar": "أبو موسى",
+   "en": "Abu Musa",
+   "aka": [
+    "موسى"
+   ],
+   "pt": [
+    55.03,
+    25.875
+   ],
+   "in": "IRN",
+   "kind": "island",
+   "span": 0.5,
+   "src": "border data ring 55.01-55.05 E, 25.85-25.89 N; held by Iran, claimed by the UAE"
+  },
+  "FUJAIRAH": {
+   "ar": "الفجيرة",
+   "en": "Fujairah (oil terminal)",
+   "aka": [
+    "الفجيرة",
+    "والفجيرة"
+   ],
+   "pt": [
+    56.33,
+    25.15
+   ],
+   "in": "ARE",
+   "kind": "port",
+   "span": 1,
+   "src": "port of Fujairah, Gulf of Oman coast; end of the Habshan-Fujairah pipeline"
+  },
+  "HABSHAN": {
+   "ar": "حبشان",
+   "en": "Habshan",
+   "pt": [
+    53.65,
+    23.83
+   ],
+   "in": "ARE",
+   "kind": "point",
+   "span": 2,
+   "src": "start of the Habshan-Fujairah (ADCOP) pipeline"
+  },
+  "DUBAI": {
+   "ar": "دبي",
+   "en": "Dubai",
+   "aka": [
+    "دبي"
+   ],
+   "pt": [
+    55.27,
+    25.2
+   ],
+   "in": "ARE",
+   "kind": "city",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "JEBEL_ALI": {
+   "ar": "جبل علي",
+   "en": "Jebel Ali port",
+   "pt": [
+    55.03,
+    25.0
+   ],
+   "in": "ARE",
+   "kind": "port",
+   "span": 1,
+   "src": "port"
+  },
+  "ABU_DHABI": {
+   "ar": "أبوظبي",
+   "en": "Abu Dhabi",
+   "aka": [
+    "أبوظبي"
+   ],
+   "pt": [
+    54.37,
+    24.45
+   ],
+   "in": "ARE",
+   "kind": "capital",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "MUSCAT": {
+   "ar": "مسقط",
+   "en": "Muscat",
+   "aka": [
+    "مسقط"
+   ],
+   "pt": [
+    58.41,
+    23.59
+   ],
+   "in": "OMN",
+   "kind": "capital",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "DOHA": {
+   "ar": "الدوحة",
+   "en": "Doha",
+   "aka": [
+    "الدوحة"
+   ],
+   "pt": [
+    51.53,
+    25.29
+   ],
+   "in": "QAT",
+   "kind": "capital",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "RAS_LAFFAN": {
+   "ar": "رأس لفان",
+   "en": "Ras Laffan (LNG)",
+   "aka": [
+    "لفان"
+   ],
+   "pt": [
+    51.55,
+    25.91
+   ],
+   "in": "QAT",
+   "kind": "port",
+   "span": 1,
+   "src": "Ras Laffan industrial city, Qatar's LNG export port"
+  },
+  "MANAMA": {
+   "ar": "المنامة",
+   "en": "Manama",
+   "aka": [
+    "المنامة"
+   ],
+   "pt": [
+    50.58,
+    26.22
+   ],
+   "in": "BHR",
+   "kind": "capital",
+   "span": 1,
+   "src": "city centre"
+  },
+  "NSA_BAHRAIN": {
+   "ar": "مقر الأسطول الخامس الأمريكي",
+   "en": "NSA Bahrain (US 5th Fleet HQ)",
+   "aka": [
+    "الخامس"
+   ],
+   "pt": [
+    50.61,
+    26.21
+   ],
+   "in": "BHR",
+   "kind": "base",
+   "span": 0.6,
+   "src": "Juffair, Manama"
+  },
+  "RIYADH": {
+   "ar": "الرياض",
+   "en": "Riyadh",
+   "aka": [
+    "الرياض"
+   ],
+   "pt": [
+    46.72,
+    24.69
+   ],
+   "in": "SAU",
+   "kind": "capital",
+   "span": 3,
+   "src": "city centre"
+  },
+  "RAS_TANURA": {
+   "ar": "رأس تنورة",
+   "en": "Ras Tanura (oil terminal)",
+   "aka": [
+    "تنورة"
+   ],
+   "pt": [
+    50.16,
+    26.64
+   ],
+   "in": "SAU",
+   "kind": "port",
+   "span": 1,
+   "src": "Saudi Aramco terminal"
+  },
+  "ABQAIQ": {
+   "ar": "بقيق",
+   "en": "Abqaiq",
+   "aka": [
+    "بقيق"
+   ],
+   "pt": [
+    49.68,
+    25.94
+   ],
+   "in": "SAU",
+   "kind": "point",
+   "span": 2,
+   "src": "processing plant; start of the East-West pipeline"
+  },
+  "YANBU": {
+   "ar": "ينبع",
+   "en": "Yanbu",
+   "aka": [
+    "ينبع",
+    "لينبع"
+   ],
+   "pt": [
+    38.06,
+    24.09
+   ],
+   "in": "SAU",
+   "kind": "port",
+   "span": 1.5,
+   "src": "Red Sea terminal, end of the East-West pipeline"
+  },
+  "KUWAIT_CITY": {
+   "ar": "مدينة الكويت",
+   "en": "Kuwait City",
+   "pt": [
+    47.98,
+    29.37
+   ],
+   "in": "KWT",
+   "kind": "capital",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "BASRA": {
+   "ar": "البصرة",
+   "en": "Basra",
+   "aka": [
+    "البصرة"
+   ],
+   "pt": [
+    47.81,
+    30.51
+   ],
+   "in": "IRQ",
+   "kind": "port",
+   "span": 1.5,
+   "src": "city centre"
+  },
+  "BAGHDAD": {
+   "ar": "بغداد",
+   "en": "Baghdad",
+   "aka": [
+    "بغداد"
+   ],
+   "pt": [
+    44.366,
+    33.315
+   ],
+   "in": "IRQ",
+   "kind": "capital",
+   "span": 3,
+   "src": "city centre"
+  },
+  "KHARG": {
+   "ar": "جزيرة خارك",
+   "en": "Kharg island (oil terminal)",
+   "aka": [
+    "خارك"
+   ],
+   "pt": [
+    50.32,
+    29.25
+   ],
+   "in": "IRN",
+   "kind": "island",
+   "span": 0.6,
+   "src": "Iran's main crude terminal"
+  },
+  "TEHRAN": {
+   "ar": "طهران",
+   "en": "Tehran",
+   "aka": [
+    "طهران"
+   ],
+   "pt": [
+    51.39,
+    35.69
+   ],
+   "in": "IRN",
+   "kind": "capital",
+   "span": 3,
+   "src": "city centre"
+  },
+  "SINGAPORE_STRAIT": {
+   "ar": "مضيق سنغافورة",
+   "en": "Singapore Strait",
+   "pt": [
+    103.85,
+    1.2
+   ],
+   "in": "sea",
+   "kind": "strait",
+   "span": 1.5,
+   "src": "mid-channel south of Singapore"
+  },
+  "MALACCA": {
+   "ar": "مضيق ملقا",
+   "en": "Strait of Malacca",
+   "aka": [
+    "ملقا"
+   ],
+   "pt": [
+    100.5,
+    3.2
+   ],
+   "in": "sea",
+   "kind": "strait",
+   "span": 6,
+   "src": "mid-strait"
+  },
+  "GIBRALTAR": {
+   "ar": "مضيق جبل طارق",
+   "en": "Strait of Gibraltar",
+   "aka": [
+    "طارق",
+    "جبل طارق"
+   ],
+   "pt": [
+    -5.6,
+    35.95
+   ],
+   "in": "sea",
+   "kind": "strait",
+   "span": 1.5,
+   "src": "mid-strait"
+  },
+  "BOSPORUS": {
+   "ar": "مضيق البوسفور",
+   "en": "Bosporus",
+   "aka": [
+    "البوسفور"
+   ],
+   "pt": [
+    29.06,
+    41.12
+   ],
+   "in": "sea",
+   "off_map": true,
+   "kind": "strait",
+   "span": 0.8,
+   "src": "mid-strait (the 1:10m borders draw it as land: a canal box in the engine)"
+  },
+  "PANAMA_CANAL": {
+   "ar": "قناة بنما",
+   "en": "Panama Canal",
+   "aka": [
+    "بنما"
+   ],
+   "pt": [
+    -79.7,
+    9.1
+   ],
+   "in": "PAN",
+   "kind": "canal",
+   "span": 1.5,
+   "src": "Gatun lake area"
+  },
+  "CAPE_GOOD_HOPE": {
+   "ar": "رأس الرجاء الصالح",
+   "en": "Cape of Good Hope",
+   "aka": [
+    "الرجاء"
+   ],
+   "pt": [
+    18.47,
+    -34.36
+   ],
+   "in": "ZAF",
+   "kind": "point",
+   "span": 6,
+   "src": "34°21'S 18°28'E"
+  },
+  "BEIJING": {
+   "ar": "بكين",
+   "en": "Beijing",
+   "aka": [
+    "بكين"
+   ],
+   "pt": [
+    116.4,
+    39.9
+   ],
+   "in": "CHN",
+   "kind": "capital",
+   "span": 4,
+   "src": "city centre"
+  },
+  "SHANGHAI": {
+   "ar": "شنغهاي",
+   "en": "Shanghai",
+   "aka": [
+    "شنغهاي"
+   ],
+   "pt": [
+    121.47,
+    31.23
+   ],
+   "in": "CHN",
+   "kind": "port",
+   "span": 3,
+   "src": "city centre"
+  },
+  "NEW_DELHI": {
+   "ar": "نيودلهي",
+   "en": "New Delhi",
+   "aka": [
+    "نيودلهي"
+   ],
+   "pt": [
+    77.21,
+    28.61
+   ],
+   "in": "IND",
+   "kind": "capital",
+   "span": 4,
+   "src": "city centre"
+  },
+  "MUMBAI": {
+   "ar": "مومباي",
+   "en": "Mumbai",
+   "aka": [
+    "مومباي"
+   ],
+   "pt": [
+    72.88,
+    19.08
+   ],
+   "in": "IND",
+   "kind": "port",
+   "span": 3,
+   "src": "city centre"
+  },
+  "TOKYO": {
+   "ar": "طوكيو",
+   "en": "Tokyo",
+   "aka": [
+    "طوكيو"
+   ],
+   "pt": [
+    139.69,
+    35.69
+   ],
+   "in": "JPN",
+   "kind": "capital",
+   "span": 4,
+   "src": "city centre"
+  },
+  "SEOUL": {
+   "ar": "سيول",
+   "en": "Seoul",
+   "aka": [
+    "سيول"
+   ],
+   "pt": [
+    126.98,
+    37.57
+   ],
+   "in": "KOR",
+   "kind": "capital",
+   "span": 3,
+   "src": "city centre"
+  },
+  "WASHINGTON": {
+   "ar": "واشنطن",
+   "en": "Washington",
+   "aka": [
+    "واشنطن"
+   ],
+   "pt": [
+    -77.04,
+    38.9
+   ],
+   "in": "USA",
+   "kind": "capital",
+   "span": 4,
+   "src": "city centre"
+  },
+  "DAKHLA": {
+   "ar": "الداخلة",
+   "en": "Dakhla",
+   "aka": [
+    "الداخلة",
+    "مدينة الداخلة"
+   ],
+   "pt": [
+    -15.94,
+    23.705
+   ],
+   "in": "MAR",
+   "kind": "city",
+   "span": 1.4,
+   "src": "Wikipedia Dakhla: 23°43′N 15°57′W, on the Rio de Oro peninsula (Moroccan Sahara)"
+  }
  },
  "lanes": {
-  "RED_SEA": { "ar": "خط البحر الأحمر", "src": "v6 LANE: Gulf of Aden -> main channel west of Perim -> east of the Hanish islands -> mid Red Sea -> Strait of Gubal -> Gulf of Suez", "pts": [[46.5, 11.9], [45.2, 12.0], [44.3, 12.2], [43.95, 12.3], [43.62, 12.42], [43.355, 12.562], [43.27, 12.82], [43.0, 13.25], [42.98, 13.85], [42.55, 14.55], [42.0, 15.35], [41.0, 16.6], [39.8, 18.5], [38.3, 20.6], [37.3, 22.8], [35.9, 25.0], [34.6, 26.95], [34.13, 27.6], [33.75, 27.9], [33.35, 28.3], [32.92, 28.95], [32.56, 29.5], [32.56, 29.9]] },
-  "BAB_GATE": { "ar": "عبور باب المندب", "src": "v6 GATE = RED_SEA points 2-8", "pts": [[44.3, 12.2], [43.95, 12.3], [43.62, 12.42], [43.355, 12.562], [43.27, 12.82], [43.0, 13.25], [42.98, 13.85]] },
-  "ADEN_STREAM": { "ar": "خليج عدن إلى جنوب البحر الأحمر", "src": "v6 STREAM = RED_SEA points 0-11", "pts": [[46.5, 11.9], [45.2, 12.0], [44.3, 12.2], [43.95, 12.3], [43.62, 12.42], [43.355, 12.562], [43.27, 12.82], [43.0, 13.25], [42.98, 13.85], [42.55, 14.55], [42.0, 15.35], [41.0, 16.6]] },
-  "BAB_TO_SINGAPORE": { "ar": "من باب المندب إلى سنغافورة", "src": "v6 ASIA", "pts": [[43.355, 12.562], [43.62, 12.42], [44.3, 12.2], [48.5, 12.4], [56, 13.5], [66, 11], [74, 7.5], [80.5, 5.4], [88, 5.8], [94.5, 6.3], [97.0, 5.9], [98.8, 4.3], [100.3, 2.9], [102.0, 2.2], [103.0, 1.5], [103.6, 1.17]] },
-  "SUEZ_TO_ATLANTIC": { "ar": "من السويس عبر المتوسط إلى الأطلسي", "src": "v6 MED", "pts": [[32.56, 29.9], [32.31, 31.27], [32.0, 32.2], [28, 33.4], [20, 34.6], [11.75, 37.38], [9.0, 37.9], [5, 37.6], [-1, 36.3], [-5.6, 35.95], [-7.5, 36.3], [-9.6, 36.8], [-10.2, 38.6]] },
-  "AROUND_AFRICA": { "ar": "حول إفريقيا عبر رأس الرجاء الصالح", "src": "v6 CAPE", "pts": [[45.8, 11.8], [48.5, 12.3], [51.8, 12.05], [52.0, 10.4], [51.0, 6.0], [47.5, 1.0], [42.5, -5.0], [41.8, -11.5], [41.2, -17.0], [38.0, -23.5], [33.5, -29.5], [27.5, -34.8], [20.0, -35.6], [17.3, -34.2], [12.0, -22.0], [5, -8], [-6, -1], [-13, 4], [-19, 12], [-19.5, 20], [-19.5, 28.3], [-15, 33], [-10.5, 37.0], [-10.2, 38.6]] },
-  "HORMUZ_GATE": { "ar": "عبور مضيق هرمز", "src": "Gulf of Oman -> between the Quoin islands and Larak -> north of Musandam -> between Qeshm and the Tunbs", "pts": [[57.4, 25.45], [56.9, 25.95], [56.66, 26.3], [56.55, 26.62], [56.25, 26.64], [55.9, 26.47], [55.5, 26.37]] },
-  "HORMUZ_TO_RAS_TANURA": { "ar": "من خليج عمان عبر هرمز إلى رأس تنورة", "src": "HORMUZ_GATE, then south of the Tunbs and north of Abu Musa, then the middle of the Gulf to the Saudi terminal", "pts": [[58.6, 24.6], [57.4, 25.45], [56.9, 25.95], [56.66, 26.3], [56.55, 26.62], [56.25, 26.64], [55.9, 26.47], [55.5, 26.3], [55.15, 26.08], [54.3, 26.2], [53.0, 26.6], [51.9, 27.0], [50.95, 26.95], [50.35, 26.75]] },
-  "HORMUZ_TO_KHARG": { "ar": "من هرمز إلى جزيرة خارك", "src": "the Gulf north of the Saudi coast, to Iran's crude terminal", "pts": [[55.5, 26.3], [55.15, 26.08], [54.3, 26.2], [53.0, 26.6], [51.9, 27.2], [51.0, 28.0], [50.55, 28.75], [50.42, 29.15]] },
-  "RAS_LAFFAN_OUT": { "ar": "من رأس لفان إلى هرمز", "src": "Qatar LNG: Ras Laffan offshore -> north-east -> joins the Gulf lane", "pts": [[51.62, 25.98], [52.2, 26.25], [53.0, 26.5], [54.3, 26.2], [55.15, 26.08], [55.5, 26.3], [55.9, 26.47], [56.25, 26.64], [56.55, 26.62], [56.66, 26.3], [56.9, 25.95], [57.4, 25.45], [58.6, 24.6]] },
-  "HORMUZ_TO_EAST_ASIA": { "ar": "من هرمز إلى شرق آسيا عبر ملقا", "src": "Gulf of Oman -> Arabian Sea -> south of Sri Lanka -> Malacca -> Singapore Strait -> South China Sea", "pts": [[57.4, 25.45], [59.5, 24.0], [64.0, 20.5], [70.0, 14.0], [76.0, 7.0], [80.5, 5.4], [88, 5.8], [94.5, 6.3], [97.0, 5.9], [98.8, 4.3], [100.3, 2.9], [102.0, 2.2], [103.0, 1.5], [103.85, 1.2], [104.5, 1.45], [105.6, 3.0], [109.0, 8.0], [111.5, 13.0], [114.0, 19.0], [114.3, 21.6]] },
-  "HORMUZ_TO_INDIA": { "ar": "من هرمز إلى مومباي", "src": "Gulf of Oman -> Arabian Sea -> Mumbai offshore", "pts": [[57.4, 25.45], [59.5, 24.0], [64.0, 21.5], [69.0, 19.5], [72.6, 18.9]] }
+  "RED_SEA": {
+   "ar": "خط البحر الأحمر",
+   "src": "v6 LANE: Gulf of Aden -> main channel west of Perim -> east of the Hanish islands -> mid Red Sea -> Strait of Gubal -> Gulf of Suez",
+   "pts": [
+    [
+     46.5,
+     11.9
+    ],
+    [
+     45.2,
+     12.0
+    ],
+    [
+     44.3,
+     12.2
+    ],
+    [
+     43.95,
+     12.3
+    ],
+    [
+     43.62,
+     12.42
+    ],
+    [
+     43.355,
+     12.562
+    ],
+    [
+     43.27,
+     12.82
+    ],
+    [
+     43.0,
+     13.25
+    ],
+    [
+     42.98,
+     13.85
+    ],
+    [
+     42.55,
+     14.55
+    ],
+    [
+     42.0,
+     15.35
+    ],
+    [
+     41.0,
+     16.6
+    ],
+    [
+     39.8,
+     18.5
+    ],
+    [
+     38.3,
+     20.6
+    ],
+    [
+     37.3,
+     22.8
+    ],
+    [
+     35.9,
+     25.0
+    ],
+    [
+     34.6,
+     26.95
+    ],
+    [
+     34.13,
+     27.6
+    ],
+    [
+     33.75,
+     27.9
+    ],
+    [
+     33.35,
+     28.3
+    ],
+    [
+     32.92,
+     28.95
+    ],
+    [
+     32.56,
+     29.5
+    ],
+    [
+     32.56,
+     29.9
+    ]
+   ]
+  },
+  "BAB_GATE": {
+   "ar": "عبور باب المندب",
+   "src": "v6 GATE = RED_SEA points 2-8",
+   "pts": [
+    [
+     44.3,
+     12.2
+    ],
+    [
+     43.95,
+     12.3
+    ],
+    [
+     43.62,
+     12.42
+    ],
+    [
+     43.355,
+     12.562
+    ],
+    [
+     43.27,
+     12.82
+    ],
+    [
+     43.0,
+     13.25
+    ],
+    [
+     42.98,
+     13.85
+    ]
+   ]
+  },
+  "ADEN_STREAM": {
+   "ar": "خليج عدن إلى جنوب البحر الأحمر",
+   "src": "v6 STREAM = RED_SEA points 0-11",
+   "pts": [
+    [
+     46.5,
+     11.9
+    ],
+    [
+     45.2,
+     12.0
+    ],
+    [
+     44.3,
+     12.2
+    ],
+    [
+     43.95,
+     12.3
+    ],
+    [
+     43.62,
+     12.42
+    ],
+    [
+     43.355,
+     12.562
+    ],
+    [
+     43.27,
+     12.82
+    ],
+    [
+     43.0,
+     13.25
+    ],
+    [
+     42.98,
+     13.85
+    ],
+    [
+     42.55,
+     14.55
+    ],
+    [
+     42.0,
+     15.35
+    ],
+    [
+     41.0,
+     16.6
+    ]
+   ]
+  },
+  "BAB_TO_SINGAPORE": {
+   "ar": "من باب المندب إلى سنغافورة",
+   "src": "v6 ASIA",
+   "pts": [
+    [
+     43.355,
+     12.562
+    ],
+    [
+     43.62,
+     12.42
+    ],
+    [
+     44.3,
+     12.2
+    ],
+    [
+     48.5,
+     12.4
+    ],
+    [
+     56,
+     13.5
+    ],
+    [
+     66,
+     11
+    ],
+    [
+     74,
+     7.5
+    ],
+    [
+     80.5,
+     5.4
+    ],
+    [
+     88,
+     5.8
+    ],
+    [
+     94.5,
+     6.3
+    ],
+    [
+     97.0,
+     5.9
+    ],
+    [
+     98.8,
+     4.3
+    ],
+    [
+     100.3,
+     2.9
+    ],
+    [
+     102.0,
+     2.2
+    ],
+    [
+     103.0,
+     1.5
+    ],
+    [
+     103.6,
+     1.17
+    ]
+   ]
+  },
+  "SUEZ_TO_ATLANTIC": {
+   "ar": "من السويس عبر المتوسط إلى الأطلسي",
+   "src": "v6 MED",
+   "pts": [
+    [
+     32.56,
+     29.9
+    ],
+    [
+     32.31,
+     31.27
+    ],
+    [
+     32.0,
+     32.2
+    ],
+    [
+     28,
+     33.4
+    ],
+    [
+     20,
+     34.6
+    ],
+    [
+     11.75,
+     37.38
+    ],
+    [
+     9.0,
+     37.9
+    ],
+    [
+     5,
+     37.6
+    ],
+    [
+     -1,
+     36.3
+    ],
+    [
+     -5.6,
+     35.95
+    ],
+    [
+     -7.5,
+     36.3
+    ],
+    [
+     -9.6,
+     36.8
+    ],
+    [
+     -10.2,
+     38.6
+    ]
+   ]
+  },
+  "AROUND_AFRICA": {
+   "ar": "حول إفريقيا عبر رأس الرجاء الصالح",
+   "src": "v6 CAPE",
+   "pts": [
+    [
+     45.8,
+     11.8
+    ],
+    [
+     48.5,
+     12.3
+    ],
+    [
+     51.8,
+     12.05
+    ],
+    [
+     52.0,
+     10.4
+    ],
+    [
+     51.0,
+     6.0
+    ],
+    [
+     47.5,
+     1.0
+    ],
+    [
+     42.5,
+     -5.0
+    ],
+    [
+     41.8,
+     -11.5
+    ],
+    [
+     41.2,
+     -17.0
+    ],
+    [
+     38.0,
+     -23.5
+    ],
+    [
+     33.5,
+     -29.5
+    ],
+    [
+     27.5,
+     -34.8
+    ],
+    [
+     20.0,
+     -35.6
+    ],
+    [
+     17.3,
+     -34.2
+    ],
+    [
+     12.0,
+     -22.0
+    ],
+    [
+     5,
+     -8
+    ],
+    [
+     -6,
+     -1
+    ],
+    [
+     -13,
+     4
+    ],
+    [
+     -19,
+     12
+    ],
+    [
+     -19.5,
+     20
+    ],
+    [
+     -19.5,
+     28.3
+    ],
+    [
+     -15,
+     33
+    ],
+    [
+     -10.5,
+     37.0
+    ],
+    [
+     -10.2,
+     38.6
+    ]
+   ]
+  },
+  "HORMUZ_GATE": {
+   "ar": "عبور مضيق هرمز",
+   "src": "Gulf of Oman -> between the Quoin islands and Larak -> north of Musandam -> between Qeshm and the Tunbs",
+   "pts": [
+    [
+     57.4,
+     25.45
+    ],
+    [
+     56.9,
+     25.95
+    ],
+    [
+     56.66,
+     26.3
+    ],
+    [
+     56.55,
+     26.62
+    ],
+    [
+     56.25,
+     26.64
+    ],
+    [
+     55.9,
+     26.47
+    ],
+    [
+     55.5,
+     26.37
+    ]
+   ]
+  },
+  "HORMUZ_TO_RAS_TANURA": {
+   "ar": "من خليج عمان عبر هرمز إلى رأس تنورة",
+   "src": "HORMUZ_GATE, then south of the Tunbs and north of Abu Musa, then the middle of the Gulf to the Saudi terminal",
+   "pts": [
+    [
+     58.6,
+     24.6
+    ],
+    [
+     57.4,
+     25.45
+    ],
+    [
+     56.9,
+     25.95
+    ],
+    [
+     56.66,
+     26.3
+    ],
+    [
+     56.55,
+     26.62
+    ],
+    [
+     56.25,
+     26.64
+    ],
+    [
+     55.9,
+     26.47
+    ],
+    [
+     55.5,
+     26.3
+    ],
+    [
+     55.15,
+     26.08
+    ],
+    [
+     54.3,
+     26.2
+    ],
+    [
+     53.0,
+     26.6
+    ],
+    [
+     51.9,
+     27.0
+    ],
+    [
+     50.95,
+     26.95
+    ],
+    [
+     50.35,
+     26.75
+    ]
+   ]
+  },
+  "HORMUZ_TO_KHARG": {
+   "ar": "من هرمز إلى جزيرة خارك",
+   "src": "the Gulf north of the Saudi coast, to Iran's crude terminal",
+   "pts": [
+    [
+     55.5,
+     26.3
+    ],
+    [
+     55.15,
+     26.08
+    ],
+    [
+     54.3,
+     26.2
+    ],
+    [
+     53.0,
+     26.6
+    ],
+    [
+     51.9,
+     27.2
+    ],
+    [
+     51.0,
+     28.0
+    ],
+    [
+     50.55,
+     28.75
+    ],
+    [
+     50.42,
+     29.15
+    ]
+   ]
+  },
+  "RAS_LAFFAN_OUT": {
+   "ar": "من رأس لفان إلى هرمز",
+   "src": "Qatar LNG: Ras Laffan offshore -> north-east -> joins the Gulf lane",
+   "pts": [
+    [
+     51.62,
+     25.98
+    ],
+    [
+     52.2,
+     26.25
+    ],
+    [
+     53.0,
+     26.5
+    ],
+    [
+     54.3,
+     26.2
+    ],
+    [
+     55.15,
+     26.08
+    ],
+    [
+     55.5,
+     26.3
+    ],
+    [
+     55.9,
+     26.47
+    ],
+    [
+     56.25,
+     26.64
+    ],
+    [
+     56.55,
+     26.62
+    ],
+    [
+     56.66,
+     26.3
+    ],
+    [
+     56.9,
+     25.95
+    ],
+    [
+     57.4,
+     25.45
+    ],
+    [
+     58.6,
+     24.6
+    ]
+   ]
+  },
+  "HORMUZ_TO_EAST_ASIA": {
+   "ar": "من هرمز إلى شرق آسيا عبر ملقا",
+   "src": "Gulf of Oman -> Arabian Sea -> south of Sri Lanka -> Malacca -> Singapore Strait -> South China Sea",
+   "pts": [
+    [
+     57.4,
+     25.45
+    ],
+    [
+     59.5,
+     24.0
+    ],
+    [
+     64.0,
+     20.5
+    ],
+    [
+     70.0,
+     14.0
+    ],
+    [
+     76.0,
+     7.0
+    ],
+    [
+     80.5,
+     5.4
+    ],
+    [
+     88,
+     5.8
+    ],
+    [
+     94.5,
+     6.3
+    ],
+    [
+     97.0,
+     5.9
+    ],
+    [
+     98.8,
+     4.3
+    ],
+    [
+     100.3,
+     2.9
+    ],
+    [
+     102.0,
+     2.2
+    ],
+    [
+     103.0,
+     1.5
+    ],
+    [
+     103.85,
+     1.2
+    ],
+    [
+     104.5,
+     1.45
+    ],
+    [
+     105.6,
+     3.0
+    ],
+    [
+     109.0,
+     8.0
+    ],
+    [
+     111.5,
+     13.0
+    ],
+    [
+     114.0,
+     19.0
+    ],
+    [
+     114.3,
+     21.6
+    ]
+   ]
+  },
+  "HORMUZ_TO_INDIA": {
+   "ar": "من هرمز إلى مومباي",
+   "src": "Gulf of Oman -> Arabian Sea -> Mumbai offshore",
+   "pts": [
+    [
+     57.4,
+     25.45
+    ],
+    [
+     59.5,
+     24.0
+    ],
+    [
+     64.0,
+     21.5
+    ],
+    [
+     69.0,
+     19.5
+    ],
+    [
+     72.6,
+     18.9
+    ]
+   ]
+  }
  },
  "pipelines": {
-  "EAST_WEST": { "ar": "خط شرق-غرب السعودي", "src": "Abqaiq -> Yanbu, 5 million b/d rated (EIA 2025)", "pts": [[49.68, 25.94], [47.0, 25.2], [44.0, 24.6], [41.0, 24.3], [38.06, 24.09]] },
-  "HABSHAN_FUJAIRAH": { "ar": "خط حبشان-الفجيرة", "src": "ADCOP, 1.8 million b/d (EIA 2025)", "pts": [[53.65, 23.83], [54.6, 24.2], [55.6, 24.75], [56.33, 25.15]] }
+  "EAST_WEST": {
+   "ar": "خط شرق-غرب السعودي",
+   "src": "Abqaiq -> Yanbu, 5 million b/d rated (EIA 2025)",
+   "pts": [
+    [
+     49.68,
+     25.94
+    ],
+    [
+     47.0,
+     25.2
+    ],
+    [
+     44.0,
+     24.6
+    ],
+    [
+     41.0,
+     24.3
+    ],
+    [
+     38.06,
+     24.09
+    ]
+   ]
+  },
+  "HABSHAN_FUJAIRAH": {
+   "ar": "خط حبشان-الفجيرة",
+   "src": "ADCOP, 1.8 million b/d (EIA 2025)",
+   "pts": [
+    [
+     53.65,
+     23.83
+    ],
+    [
+     54.6,
+     24.2
+    ],
+    [
+     55.6,
+     24.75
+    ],
+    [
+     56.33,
+     25.15
+    ]
+   ]
+  }
  }
 }

@@ -75,6 +75,8 @@ private val IDEAS = listOf(
     "بحر الصين الجنوبي: الجزر الصناعية الصينية", "مضيق البوسفور: المدينة التي تقف على قارتين",
     "طريق الحرير الجديد: الصين إلى أوروبا براً", "الصحراء المغربية: ميناء الداخلة الأطلسي",
 )
+/** the approved AI Studio narrator style (CLAUDE.md, item 9): Riko, live fusha, every punctuation pause kept */
+private const val STYLE = "A live, engaged human documentary narrator speaking pure Modern Standard Arabic (fusha) with perfect classical pronunciation, no dialect at all. Warm, natural and expressive like a real person telling a gripping story, rich vocal modulation, never robotic or flat. Respect every punctuation mark fully: a short breath at each comma, a clear stop at each period, a suspenseful pause at each colon and ellipsis, a rising questioning tone at each question mark, and real energy and emphasis at each exclamation mark. Lean on the key numbers and names."
 private val TABS = listOf(Triple("الاستوديو", "clapper", 0), Triple("الأفلام", "film", 1), Triple("الإعدادات", "gear", 2))
 
 private fun clip(c: Context): String? = (c.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(c)?.toString()
@@ -196,7 +198,14 @@ private fun StudioTab(m: Madar, openSettings: () -> Unit) {
             GhostButton("الصق الرد من الحافظة", Modifier.fillMaxWidth(), fx = "scroll") { val t = clip(ctx); if (t.isNullOrBlank()) m.toast("الحافظة فارغة", -1) else { reply = t; s.reply = t } }
         } }
         // 3. check
-        if (report != null && parsed != null) Card(accent = if (report.ok) Good else Bad) { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (parsed != null && parsed.script.isEmpty()) Card(accent = Warn) { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {   // not a Gemini reply at all: one clear sentence
+            SectionTitle("لم أجد سكربتاً في المنسوخ", fx = "warning")
+            Text("الذي في الحافظة ليس ردّ Gemini الكامل. في Gemini اضغط زر «نسخ» تحت الرد (لا تنسخ جزءاً منه)، ثم عُد إلى هنا فيُلتقط وحده، أو اضغط «الصق الرد من الحافظة».", style = MaterialTheme.typography.bodyMedium)
+            Text("ما التقطتُه (${reply.length} حرفاً):", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(reply.take(600), style = MaterialTheme.typography.bodySmall, maxLines = 14, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(10.dp))
+            GhostButton("امسح وابدأ من جديد", Modifier.fillMaxWidth(), fx = "wastebasket") { reply = ""; s.reply = "" }
+        } }
+        else if (report != null && parsed != null) Card(accent = if (report.ok) Good else Bad) { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             SectionTitle("فحص السكربت", fx = "check", trailing = { Pill(if (report.ok) "سليم" else "${report.problems.count { it.error }} خطأ", if (report.ok) Good else Bad) })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { StatTile("${report.lines}", "سطراً", "scroll", Modifier.weight(1f)); StatTile("${report.words}", "كلمة", "books", Modifier.weight(1f)); StatTile("${report.seconds}", "ثانية", "stopwatch", Modifier.weight(1f)) }
             for (p in report.problems.take(14)) CheckLine(!p.error, p.text, warn = !p.error)
@@ -204,10 +213,12 @@ private fun StudioTab(m: Madar, openSettings: () -> Unit) {
             Text(parsed.script.joinToString("\n"), style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp), modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(12.dp))
         } }
         // 4. voice
-        if (parsed != null) Card { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (parsed != null && parsed.script.isNotEmpty()) Card { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("الصوت", fx = "mic", trailing = { if (voice.isNotBlank()) Pill("جاهز", Good) })
-            Text("افتح ElevenLabs والسكربت ملصوق، اختر الصوت وولّده واسمعه، ثم نزّله وشاركه إلى TaleSpark أو اختره من هنا.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            GoldButton("افتح ElevenLabs والنص ملصوق", fx = "mic") { sendTo(ctx, ELEVEN, parsed.script.joinToString("\n"), "https://elevenlabs.io/app/speech-synthesis/text-to-speech") }
+            Text("AI Studio: يُنسخ السكربت ويُفتح «توليد الكلام». اختر الصوت Riko، والصق وصف الأسلوب (زر النسخ أدناه)، ثم Run وDownload، وشارك الملف إلى TaleSpark أو اختره من هنا.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            GoldButton("افتح AI Studio والسكربت منسوخ", fx = "mic") { copyText(ctx, parsed.script.joinToString("\n")); runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/generate-speech")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }; m.toast("نُسخ السكربت: الصقه في خانة النص", 1) }
+            GhostButton("انسخ وصف أسلوب الراوي", Modifier.fillMaxWidth(), fx = "scroll") { copyText(ctx, STYLE); m.toast("نُسخ وصف الأسلوب: الصقه في Style", 1) }
+            GhostButton("ElevenLabs بدلاً منه", Modifier.fillMaxWidth(), fx = "speech") { sendTo(ctx, ELEVEN, parsed.script.joinToString("\n"), "https://elevenlabs.io/app/speech-synthesis/text-to-speech") }
             GhostButton(if (voice.isBlank()) "اختر ملف الصوت" else "الصوت: $voice", Modifier.fillMaxWidth(), fx = "folder") { pickVoice.launch(arrayOf("audio/*")) }
         } }
         // 5. a sheet, only for a new moving object
