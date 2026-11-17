@@ -138,7 +138,8 @@ if (mode === 'frames' && !process.env.SERIAL) {
   }, [jobs, ENC]);
   if (r !== 'ok') { console.log('render error:', r.slice(3)); process.exit(1); }
   while (written < jobs.length) await new Promise(r => setTimeout(r, 20));
-} else for (const [t, name] of jobs) { const d = await pg.evaluate(async t => { try { if (window.NEED) await window.NEED(t); window.seek(t); } catch (e) { return "ERR" + e.stack; } return document.getElementById("c").toDataURL("image/jpeg", 0.93); }, t); if (d.startsWith("ERR")) { console.log(`frame ${t.toFixed(2)} s:`, d.slice(3)); process.exit(1); } fs.writeFileSync(path.join(outdir, name), Buffer.from(d.split(',')[1], 'base64')); }
+} else for (const [t, name] of jobs) { const d = await pg.evaluate(async t => { try { if (window.NEED) await window.NEED(t); window.seek(t); } catch (e) { return "ERR" + e.stack; } return document.getElementById("c").toDataURL("image/jpeg", 0.93); }, t); if (d.startsWith("ERR")) { console.log(`frame ${t.toFixed(2)} s:`, d.slice(3)); process.exit(1); } fs.writeFileSync(path.join(outdir, name), Buffer.from(d.split(',')[1], 'base64'));
+  if (mode === 'stills') { const n = await pg.evaluate(t => { try { const n = window.DBG && window.DBG.alive ? window.DBG.alive(t) : -1; window.seek(t); return n; } catch { return -1; } }, t); if (n >= 0) fs.writeFileSync(path.join(outdir, name.replace(/\.jpg$/, '.alive')), String(n)); } }   // living map phase A: how many living things the look sheet shows under each moment
 const pst = await pg.evaluate(() => window.PT_STAT || null); if (pst) console.log(`satellite patches: ${pst.loaded} loaded, ${pst.freed} freed, at most ${pst.peak} in GPU memory at once`);
 console.log(`done ${jobs.length} frames in ${outdir}, ${((Date.now() - t0) / Math.max(1, jobs.length)).toFixed(0)} ms/frame (${gpu})`);
 const shots = await pg.evaluate(() => window.SHOTLIST), events = await pg.evaluate(() => window.EVENTS);

@@ -11,4 +11,7 @@ S = Image.new('RGB', (cols * w, rows * h)); f = ImageFont.truetype(os.path.join(
 for i, p in enumerate(fs):
     x, y = (i % cols) * w, (i // cols) * h; S.paste(Image.open(p).resize((w, h)), (x, y)); dr = ImageDraw.Draw(S)
     lab = os.path.basename(p)[:-4].replace('t_', '').lstrip('f'); dr.rectangle([x, y, x + 90, y + 24], fill='black'); dr.text((x + 3, y + 1), lab, fill='yellow', font=f)
+    al = p[:-4] + '.alive'   # living map phase A: the number of living things on screen (moving objects, ships, effects); 0 = red
+    if os.path.exists(al):
+        n = open(al).read().strip(); dr.rectangle([x + w - 44, y, x + w, y + 24], fill=('#c0392b' if n == '0' else '#1e8449')); dr.text((x + w - 40, y + 1), n, fill='white', font=f)
 S.save(out, quality=86); print(out, len(fs), 'frames')

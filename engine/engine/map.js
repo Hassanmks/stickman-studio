@@ -23,7 +23,8 @@ const WORLD = await getJSON('/data/world.json', { countries: [] });
 const PATCHES = await getJSON('img/patches.json', []);
 const DEMS = await getJSON('img/dems.json', []);   // smart camera phase 3: terrain heights (prep.py: AWS Terrain Tiles, plate carree) [{src, bb, hmax}]
 const RIVERS = await getJSON('/data/rivers.json', { rivers: [] });
-const PLACES = await getJSON('/data/places.json', { places: {}, lanes: {}, pipelines: {} });   // speed plan item 9: checked places and sea lanes
+const PLACES = await getJSON('/data/places.json', { places: {}, lanes: {}, pipelines: {} });
+const OBJLIB = await getJSON('/data/objects.json', { objects: [] });   // living map phase A: the words that name a moving object (rule 9)   // speed plan item 9: checked places and sea lanes
 // spot('HORMUZ') -> [lon, lat] | lane('HORMUZ_GATE') -> [[lon, lat], ...] (a sea route, use it with path(..., {sea:true}) or sprite along)
 // pipeline('EAST_WEST') -> a land route. Unknown keys throw, so a typo never puts a spot in the wrong place.
 export function spot(k) { const p = PLACES.places[k]; if (!p) throw new Error(`spot(): '${k}' is not in engine/data/places.json`); return p.pt.slice(); }
@@ -1757,7 +1758,7 @@ export function lift(code, o = {}) {
 
 // ------------------------------------------------------------------ v6: the logic checklist (run by start(), before any frame)
 // 1 direction  2 medium (water / land)  3 relative speeds  4 relative sizes  5 flags and places  6 cause and effect
-// 7 picture = speech (every number and country on screen is spoken)  8 physics (one wind, one sun)
+// 7 picture = speech (every number and country on screen is spoken)  8 physics (one wind, one sun)  9 life (no dead close shot, a named moving object moves)
 // A failed check sets window.ERR: render.mjs prints the list and stops, so a wrong frame is never rendered.
 const NUMW = { صفر: 0, واحد: 1, واحده: 1, وحده: 1, اثنين: 2, اتنين: 2, اثنان: 2, اثنا: 2, اتنا: 2, جوج: 2, ثلاثه: 3, ثلاث: 3, تلاته: 3, تلات: 3, اربعه: 4, اربع: 4, ربعه: 4, خمسه: 5, خمس: 5,
   سته: 6, ست: 6, سبعه: 7, سبع: 7, ثمانيه: 8, ثمان: 8, تمانيه: 8, تمنيه: 8, تمن: 8, تسعه: 9, تسع: 9, تسعود: 9, عشره: 10, عشر: 10, حداشر: 11, احدعشر: 11, اتناشر: 12, اثناعشر: 12, طناش: 12, تلاتاشر: 13, اربعتاشر: 14,
@@ -1837,8 +1838,41 @@ function logic() {
   // 8 physics: one wind for every plume, one sun for every shadow (both are engine constants; a private wind is refused)
   for (const i of ITEMS) if (i.kind === 'smoke' && i.ownWind != null && i.ownWind !== WIND) f(8, `smoke at ${ts(i.t0)} has its own wind (${i.ownWind}); the scene wind is ${WIND}: use wind(v) once for the whole video`);
   R.ok.push(`(8) physics: one wind (${WIND}) for ${ITEMS.filter(i => i.kind === 'smoke').length} plume(s) and every trail, one sun (${SUN}) for every cast shadow`);
+  // 9 life (living map phase A, 2026-11-17): no dead shot. A close shot (drone, or a frame narrower than 6.5 deg) that holds
+  // water and lasts more than 3 s with nothing alive on screen (a moving object, ships, an explosion, smoke) is refused; and
+  // every moving object the narrator names (engine/data/objects.json) must be on screen near its word.
+  const dead = []; let run = null, landRuns = 0;
+  for (let t = 0; t <= END + 1e-6; t += .25) {
+    const c = camFinal(t), close = c.span <= 6.5 || (c.dr || 0) > .05; let bad = false;
+    if (close && aliveAt(t) === 0) { const hw = c.span * .5 / Math.max(.2, Math.cos(c.lat * D2R)), hh2 = c.span * .89; let sea = 0;
+      for (let gx = -2; gx <= 2; gx++) for (let gy = -4; gy <= 4; gy++) { const pt = [c.lon + hw * gx / 2.2, c.lat + hh2 * gy / 4.4]; if (!landAt(pt) && !inCanal(pt)) sea++; }
+      bad = sea >= 4 ? 'sea' : 'land'; }
+    if (bad && run && run.k === bad) run.b = t; else { if (run) dead.push(run); run = bad ? { k: bad, a: t, b: t } : null; }
+  }
+  if (run) dead.push(run);
+  for (const d of dead) if (d.b - d.a > 3) { if (d.k === 'sea') f(9, `close shot ${ts(d.a)} - ${ts(d.b)} shows water and nothing alive (no ship, aircraft or effect on screen): put the traffic of its sea lane in it`); else landRuns++; }
+  if (landRuns) R.info.push(`(9) ${landRuns} land-only close shot(s) without a moving object (land models come with phase C)`);
+  let named = 0;
+  for (const o of OBJLIB.objects) { if (o.kind !== 'move') continue; const has = !!AIDX.sprites['top/' + o.name]; const hit = new Set();
+    for (const kw of o.ar) { const k = kw.split(/\s+/).map(nw);
+      for (let i = 0; i < WORDS.length; i++) { if (hit.has(i) || !k.every((tk, j) => i + j < WORDS.length && forms(WORDS[i + j][0]).has(tk))) continue;
+        hit.add(i);
+        const tw = WORDS[i][1]; named++;
+        const ok = S.some(s => s.moving && (s.name === o.name || (s.on && s.on === (CRAFT[o.name] || {}).m)) && s.t0 <= tw + 4 && (s.t1 == null || s.t1 >= tw - 1));
+        if (!ok && has) f(9, `'${WORDS[i][0]}' (${o.name}) is spoken at ${ts(tw)} but nothing like it moves on screen near that moment`);
+        else if (!ok) R.info.push(`(9) '${WORDS[i][0]}' at ${ts(tw)} names ${o.name}, which has no top view yet`);
+        i += k.length - 1; } } }
+  R.ok.push(`(9) life: ${dead.filter(d => d.b - d.a > 3).length ? 'dead close shot(s) found' : 'every close shot over water holds something alive'}; ${named} spoken moving object word(s) checked`);
   return R;
 }
+// how many living things are on screen at t: moving objects (where the camera sees them), ships(), explosions, smoke and fire
+function aliveAt(t) { setCam(camFinal(t)); let n = 0;
+  for (const i of ITEMS) { if (t < i.t0 || (i.t1 != null && t > i.t1)) continue;
+    if (i.kind === 'ships' || i.kind === 'smoke') { n++; continue; }
+    if (i.kind !== 'sprite' || !(i.moving || i.name === 'explosion')) continue;
+    const g = i.geoPos(t); if (!Array.isArray(g)) { n++; continue; }
+    const q = P(g[0], g[1], i.on === 'sea' ? 0 : undefined); if (q[2] && q[0] > -60 && q[0] < W + 60 && q[1] > -60 && q[1] < H + 60) n++; }
+  return n; }
 
 // cut points for the sound mix ('cut:N') and the contact sheets
 const CUTS = []; export function cut(t) { CUTS.push(when(t)); }
@@ -1885,7 +1919,7 @@ function checkPlaces() {
   for (const [k, l] of Object.entries(PLACES.pipelines || {})) scan(k, l.pts, 'land');
   return R;
 }
-window.DBG = { gl, camAt, ITEMS, WORDS, landAt, clearKm, checkPlaces, logoMs(n = 240) { const t0 = performance.now(); for (let i = 0; i < n; i++) drawLogo(i * 12 / n); X.getImageData(0, 0, 1, 1); return (performance.now() - t0) / n; }, logo: t => { frame(t); return { k: LOGO && LOGO.k, box: LOGO && [LOGO.x0, LOGO.x1], boxes: BOXES.map(b => [...b.map(Math.round), b.ink && b.ink.map(Math.round)]) }; }, coastKm: (a3, pt) => coastKm(country(a3), pt), hav,
+window.DBG = { gl, camAt, ITEMS, alive: aliveAt, WORDS, landAt, clearKm, checkPlaces, logoMs(n = 240) { const t0 = performance.now(); for (let i = 0; i < n; i++) drawLogo(i * 12 / n); X.getImageData(0, 0, 1, 1); return (performance.now() - t0) / n; }, logo: t => { frame(t); return { k: LOGO && LOGO.k, box: LOGO && [LOGO.x0, LOGO.x1], boxes: BOXES.map(b => [...b.map(Math.round), b.ink && b.ink.map(Math.round)]) }; }, coastKm: (a3, pt) => coastKm(country(a3), pt), hav,
   // v7 check of the GPU land mask against the Canvas2D one at time t: pixel difference (0..255) and the time of each path
   maskCmp(t) {
     setCam(camFinal(t));

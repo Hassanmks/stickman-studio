@@ -17,7 +17,7 @@ const proj = path.resolve(process.argv[2] || ''); if (!process.argv[2]) { consol
 const J = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const TIM = J(path.join(proj, 'web', 'timing.json')), WORDS = TIM.words;
 const WORLD = J(path.join(ENG, 'data', 'world.json')), PL = J(path.join(ENG, 'data', 'places.json'));
-const PLAN = fs.existsSync(path.join(proj, 'shotplan.json')) ? J(path.join(proj, 'shotplan.json')) : [];
+let PLAN = fs.existsSync(path.join(proj, 'shotplan.json')) ? J(path.join(proj, 'shotplan.json')) : [];
 const DROP = new Set(fs.existsSync(path.join(proj, 'director.drop.json')) ? J(path.join(proj, 'director.drop.json')) : []);   // items the logic gate rejected
 const MAP = fs.readFileSync(path.join(ENG, 'engine', 'map.js'), 'utf8');
 const grab = n => { const m = MAP.match(new RegExp(`const ${n} = (\\{[\\s\\S]*?\\});`)); if (!m) throw new Error('map.js: ' + n + ' not found'); return Function('return ' + m[1])(); };
@@ -76,6 +76,34 @@ const seaApproach = (pt, span) => { const L = span * .45;
   for (let k = 0; k < 16; k++) { const a = (k * 67.5 + 45) * Math.PI / 180, end = [pt[0] + Math.cos(a) * L * .25 / kx(pt[1]), pt[1] + Math.sin(a) * L * .25], st = [pt[0] + Math.cos(a) * L / kx(pt[1]), pt[1] + Math.sin(a) * L];
     const pts = Array.from({ length: 9 }, (_, i) => [r3(st[0] + (end[0] - st[0]) * i / 8), r3(st[1] + (end[1] - st[1]) * i / 8)]);
     if (pts.every(q => !onLand(q))) return [pts[0], pts[4], pts[8]]; } return null; };
+// ---- living map phase A (2026-11-17): the shot plan is mandatory. hormuz-drone was built without one and came out with one
+// moving object instead of 24. With no shotplan.json the director now writes one from the words (place, spoken countries,
+// the moving object a line names, or the traffic of the place's own sea lane when the line speaks of oil, gas or ships).
+const OWNLANE = (k, pt) => { const own = Object.keys(PL.lanes).find(l => l.startsWith(k + '_')); if (own) return own;
+  let best = null; for (const [l, v] of Object.entries(PL.lanes)) for (const q of v.pts) { const d = hav(q, pt); if (!best || d < best.d) best = { l, d }; }
+  return best && best.d < 40 ? best.l : null; };
+const TRADE = /^(نفط|النفط|برميل|براميل|غاز|الغاز|سفن|السفن|ناقل|الناقل|شحن|الشحن|تجار|التجار|ملاح|الملاح|تعبر|يعبر|تمر|يمر|صادرات|يصدر|تصدر)/;
+if (!PLAN.length) { let lastPlace = null;
+  PLAN = LINES.map(([a, b], li) => { const p = { n: li + 1, auto: true, raw: 'auto' }, cs = [];
+    for (let i = a; i <= b; i++) { const pl = placeAt(i); if (pl) { if (!p.place) p.place = pl.k; i += pl.len - 1; continue; }
+      const cm = countryAt(i); if (cm) { if (!cs.includes(cm.c.a3)) cs.push(cm.c.a3); i += cm.len - 1; } }
+    if (cs.length) p.countries = cs;
+    const ob = objectsAt(a, b).find(({ o }) => o.kind === 'move' && TOPS.has(o.name));
+    let pk = p.place && PL.places[p.place], sea = pk && (pk.in === 'sea' || ['strait', 'canal', 'port', 'island'].includes(pk.kind));
+    if (ob) p.craft = ob.o.name;
+    else if (sea && N.slice(a, b + 1).some(w => TRADE.test(w))) p.craft = N.slice(a, b + 1).some(w => /غاز/.test(w)) ? 'lng_carrier' : 'tanker';
+    else if (!p.place && N.slice(a, b + 1).some(w => TRADE.test(w)) && (cs.length || lastPlace)) p.craft = N.slice(a, b + 1).some(w => /غاز/.test(w)) ? 'lng_carrier' : 'tanker';
+    // a moving object with no place in its line: the port of the named country that has its own sea lane (gas «from Qatar» =
+    // Ras Laffan), else the place the story is still on (the previous line's)
+    if (p.craft && !p.place && cs.length && cs.length < 3) { const k = Object.keys(PL.places).find(q => cs.includes(PL.places[q].in) && Object.keys(PL.lanes).some(l => l.startsWith(q + '_'))); if (k) p.place = k; }
+    if (p.craft && !p.place && !cs.length && lastPlace) p.place = lastPlace;
+    if (p.place) lastPlace = p.place;
+    pk = p.place && PL.places[p.place];
+    if (p.craft && (CRAFT[p.craft] || {}).m === 'sea' && pk && cs.length < 3) { const l = OWNLANE(p.place, pk.pt); if (l) p.lane = l; }
+    return p; });
+  fs.writeFileSync(path.join(proj, 'shotplan.json'), JSON.stringify(PLAN, null, 1));
+  console.log(`director: no shotplan.json, wrote one from the words (${PLAN.filter(p => p.craft).length} line(s) with a moving object)`);
+}
 const ROUTE = k => PL.lanes[k] ? { kind: 'lane', pts: PL.lanes[k].pts, call: `lane('${k}')` } : (PL.pipelines || {})[k] ? { kind: 'pipe', pts: PL.pipelines[k].pts, call: `pipeline('${k}')` } : null;
 
 const out = [], cams = [], used = new Set(['cam', 'T', 'start', 'end', 'captions']), report = { lines: [], dropped: [], notes: [] };
@@ -103,7 +131,7 @@ const step = (F, h, d) => ({ lon: r3(F.lon + Math.sin(h * Math.PI / 180) * d / k
 // strait / canal = fly along it; port, base, city, island, capital = a slow orbit around it; mountain = rise over the crest;
 // two neighbours and no place = fly along their border; a list of countries, a whole route, a comparison or a pull-out = the satellite, high
 const droneMode = (F, main, ctrs, fx) => {
-  if (!DRONE_ON || !F || F.span > 6.5 || ['تتبع', 'مقارنة', 'ابتعاد'].includes(fx)) return null;
+  if (!DRONE_ON || !F || F.span > 6.5 || ['تتبع', 'مقارنة', 'ابتعاد'].includes(fx) || ctrs.length >= 3) return null;
   if (main && !main.new) { const kd = main.p.kind;
     if ((kd === 'strait' || kd === 'canal') && axisAt(main.k, main.p.pt) != null) return 'along';
     if (['mountain', 'peak', 'range'].includes(kd)) return 'reveal';
@@ -111,8 +139,40 @@ const droneMode = (F, main, ctrs, fx) => {
   if (main) return 'orbit';
   if (ctrs.length === 2) { const [p1, p2] = ctrs.map(e => e.c.bb); if (p1[0] <= p2[2] && p2[0] <= p1[2] && p1[1] <= p2[3] && p2[1] <= p1[3]) return 'border'; }
   return null; };
-let ph = 0, pmode = null, orbitDir = 1;
+let ph = 0, pmode = null, orbitDir = 1, lineMode = null;
 report.hops = 0; report.drone = {};
+
+const dens = (pts, st) => { const o = [pts[0]]; for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / st)); for (let k = 1; k <= n; k++) o.push([x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n]); } return o; };
+const pick = (pts, n) => { const s = Math.max(1, Math.floor((pts.length - 1) / (n - 1))), o = []; for (let i = 0; i < pts.length; i += s) o.push(pts[i]); if (o[o.length - 1] !== pts[pts.length - 1]) o.push(pts[pts.length - 1]); return o.map(q => [r3(q[0]), r3(q[1])]); };
+function ambient(F, li, a, b, UNTIL, craft) {
+  const hw = F.span * .5 / kx(F.lat), hh = F.span * .89, inB = (q, m) => Math.abs(q[0] - F.lon) <= hw * m && Math.abs(q[1] - F.lat) <= hh * m;
+  const runs = [];
+  for (const [k, v] of Object.entries(PL.lanes)) { const D = dens(v.pts, F.span / 30); let cur = [], best = [];
+    for (const q of D) { if (inB(q, 1.15)) cur.push(q); else { if (cur.length > best.length) best = cur; cur = []; } }
+    if (cur.length > best.length) best = cur;
+    if (best.length >= 2 && hav(best[0], best[best.length - 1]) / 111.2 >= F.span * .45) {
+      // start just before the point nearest the middle of the frame: a drone sees the middle first, the box corners maybe never
+      let ic = 0; best.forEach((q, i) => { if (hav(q, [F.lon, F.lat]) < hav(best[ic], [F.lon, F.lat])) ic = i; });
+      const fw = best.slice(Math.max(0, ic - Math.round(best.length * .18))), bw = best.slice(0, Math.min(best.length, ic + Math.round(best.length * .18) + 1)).reverse();
+      runs.push({ k, pts: fw.length >= bw.length ? fw : bw }); } }
+  const kind = craft && (CRAFT[craft] || {}).m === 'sea' && TOPS.has(craft) ? craft : 'tanker', dur = Math.max(4, te(b) - ts(a) + 1.2);
+  runs.sort((x, y) => y.pts.length - x.pts.length); const seen = [], use2 = [];
+  for (const r of runs) { const mid = r.pts[r.pts.length >> 1]; if (seen.some(m => hav(m, mid) < F.span * 111 * .08)) continue; seen.push(mid); use2.push(r); if (use2.length === 2) break; }   // two lanes that share the same water are one
+  if (use2.length) { use('sprite');
+    use2.forEach((r, j) => { const pts = pick(r.pts, 9), K = j === 0 ? kind : (kind === 'tanker' ? 'container_ship' : 'tanker');
+      item(`sprite('${K}', null, { at: ${A(a)}, early: 0, along: ${JSON.stringify(pts)}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, until: ${UNTIL} });   // traffic on ${r.k}`, `craft ${K} (ambient)`, ts(a)); });
+    if (use2.length === 1) { const pts = pick(use2[0].pts, 9), dl = Math.min(1.6, dur * .3);
+      item(`sprite('${kind}', null, { at: ${A(a, false, dl)}, early: 0, along: ${JSON.stringify(pts)}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, until: ${UNTIL} });   // the next ship on ${use2[0].k}`, `craft ${kind} (ambient)`, ts(a) + dl); }
+    report.ambient = (report.ambient || 0) + use2.length; return; }
+  // no lane in the frame: one ship across open water, on the first heading that stays at sea all the way
+  for (let k = 0; k < 8; k++) { const h = (k * 22.5 + 30) * Math.PI / 180, dx = Math.sin(h) * hw * 1.1, dy = Math.cos(h) * hh * .55;
+    for (const off of [0, .3, -.3]) { const c = [F.lon - Math.cos(h) * hw * off, F.lat + Math.sin(h) * hh * off * .5];
+      const pts = Array.from({ length: 13 }, (_, i) => [r3(c[0] - dx + 2 * dx * i / 12), r3(c[1] - dy + 2 * dy * i / 12)]);
+      if (pts.every(q => !onLand(q))) { use('sprite');
+        item(`sprite('container_ship', null, { at: ${A(a)}, early: 0, along: ${JSON.stringify(pick(pts, 5))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, until: ${UNTIL} });   // traffic across open water`, 'craft container_ship (ambient)', ts(a));
+        report.ambient = (report.ambient || 0) + 1; return; } } }
+  report.notes.push(`السطر ${li + 1}: لقطة قريبة بلا ممر بحري ولا ماء مفتوح، لا حياة ممكنة بالمكتبة الحالية (نماذج البر في المرحلة ج).`);
+}
 
 LINES.forEach(([a, b], li) => {
   const p = PLAN.find(x => x.n === li + 1) || PLAN[li] || {}, L0 = ts(a), L1 = te(b), nextA = li + 1 < LINES.length ? LINES[li + 1][0] : null;
@@ -151,7 +211,7 @@ LINES.forEach(([a, b], li) => {
   if (p.place && typeof p.place === 'string' && PL.places[p.place]) main = { k: p.place, p: PL.places[p.place] };
   else if (p.place && p.place.new) main = { new: true, p: { ar: p.place.ar, pt: [p.place.lon, p.place.lat], span: 1.5 } };
   else if (places.length) main = places[0];
-  const route = p.lane ? ROUTE(p.lane) : null;
+  const route = p.lane ? ROUTE(p.lane) : null; lineMode = null; const out0 = out.length;
   const fx = p.fx || null;
   // ---- the frame of the line
   let F = null, why = '';
@@ -165,6 +225,9 @@ LINES.forEach(([a, b], li) => {
     const cs = ctrs.length ? ctrs.map(e => e.c) : planC, U = frame(cs.map(c => c.bb).reduce(merge), 2.4);
     const B = merge(cs.map(c => c.bb).reduce(merge), [main.p.pt[0], main.p.pt[1], main.p.pt[0], main.p.pt[1]]), G = frame(B, 2.4);   // the countries AND the place, centred between them
     F = { lon: G.lon, lat: G.lat, span: r2(Math.max(main.p.span * 4, Math.min(G.span * .8, 26))) }; why = (main.k || main.p.ar) + ' + ' + cs.map(c => c.a3).join('+');
+  } else if (ctrs.length >= 3 && !['تتبع', 'مقارنة'].includes(fx)) {   // a list of countries is a wide satellite shot that holds them all, even when the line ends on a place
+    let bb = ctrs.map(e => e.c.bb).reduce(merge); if (main) bb = merge(bb, [main.p.pt[0], main.p.pt[1], main.p.pt[0], main.p.pt[1]]);
+    F = frame(bb, 2.4); F.span = r2(Math.min(40, F.span)); why = 'list ' + ctrs.map(e => e.c.a3).join('+');
   } else if (main) {
     const pts = [main.p.pt, ...places.filter(e => e.k !== main.k).map(e => e.p.pt)];
     F = pts.length > 1 ? frame(boxOf(pts), main.p.span * 1.6) : { lon: r3(main.p.pt[0]), lat: r3(main.p.pt[1]), span: r2(main.p.span * 1.6) };
@@ -204,6 +267,7 @@ LINES.forEach(([a, b], li) => {
     else if (mode === 'reveal') { h0 = h1 = pmode ? ph : 0; p0 = 22; p1 = 56; A0 = step(F, h0, -d * 1.4); }
     const dk = (h, p) => mode ? `, drone: true, heading: ${r2(h)}${p != null ? `, pitch: ${p}` : ''}` : '';
     if (mode) report.drone[mode] = (report.drone[mode] || 0) + 1;
+    lineMode = mode;
     if (li === 0) { firstFrame = { ...F }; cams.push(`cam(0, { lon: ${A0.lon}, lat: ${A0.lat}, span: ${r2(F.span * 1.25)}${dk(h0, p0)} });   // opening: ${why}, a little wider${mode ? ' (drone: ' + mode + ')' : ''}`); }
     else {
       if (hop) { const mid = { lon: r3(prev.lon + (((F.lon - prev.lon) % 360 + 540) % 360 - 180) / 2), lat: r3((prev.lat + F.lat) / 2) }, td = te(LINES[li - 1][1]), tp = td + (arrive - td) * .45, kp = kAt(tp);
@@ -276,6 +340,9 @@ LINES.forEach(([a, b], li) => {
     else if (o.kind === 'move' && TOPS.has(o.name) && ln && (CRAFT[o.name] || {}).m === 'sea') { use('sprite', 'lane'); shownObj.add(o.name);
       item(`sprite('${o.name}', null, { at: ${A(i)}, early: 0, along: ${ln}, travel: ${r2(Math.max(4, L1 - L0 + 1.2) * 1.6)}, until: ${UNTIL} });   // «${clean(WORDS[i][0])}»`, `craft ${o.name}`, ts(i)); }
   }
+  // ---- living map phase A: no dead shot. A close shot (drone or narrower than 6.5 deg) with water and nothing moving gets the
+  // traffic of the sea lanes that cross it (or a ship across open water), smaller than the story's own objects and silent.
+  if (F && (F.span <= 6.5 || lineMode) && !out.slice(out0).some(x => /^sprite\('[a-z_]+', [\s\S]*?(along|to):/.test(x))) ambient(F, li, a, b, UNTIL, p.craft);
   // ---- numbers: one at a time at the top, each until the next one
   const ends = k => [[k, PL.places[k].pt], ...Object.entries(PL.places).filter(([q, v]) => q.startsWith(k + '_') && v.kind === 'point').map(([q, v]) => [q, v.pt])];
   nums.forEach(e => { if (e.fmt !== '# كم' || places.length < 2) return; let best = null;
@@ -343,5 +410,5 @@ const story = path.join(proj, 'web', 'story.js');
 if (fs.existsSync(story) && !/Written by engine\/scripts\/director\.mjs/.test(fs.readFileSync(story, 'utf8'))) fs.copyFileSync(story, path.join(proj, 'web', 'story.prev.js'));
 fs.writeFileSync(story, src);
 fs.writeFileSync(path.join(proj, 'director.json'), JSON.stringify(report, null, 1));
-console.log(`director: ${LINES.length} lines, ${cams.length} camera keys, ${report.hops} hop(s), drone ${JSON.stringify(report.drone)}, ${out.filter(x => !x.startsWith('\n')).length} items${report.dropped.length ? `, ${report.dropped.length} dropped by the logic gate` : ''} -> ${story}`);
+console.log(`director: ${LINES.length} lines, ${cams.length} camera keys, ${report.hops} hop(s), drone ${JSON.stringify(report.drone)}, ambient ${report.ambient || 0}, ${out.filter(x => !x.startsWith('\n')).length} items${report.dropped.length ? `, ${report.dropped.length} dropped by the logic gate` : ''} -> ${story}`);
 for (const n of report.notes) console.log('  ' + n);
