@@ -87,6 +87,33 @@ let firstShot = null;   // the first frame of the film and the line that holds i
 const numbersSeen = [];
 const COLS = ['#ffd23f', '#2fd6c8', '#ff8a3d', '#b48cff', '#5fd36b'];
 
+// ---- smart camera phases 2 + 4 (2026-11-17): hops between far places, and the drone move chosen by the kind of place
+const CFGJ = (() => { try { return JSON.parse(fs.readFileSync(path.join(proj, 'config.json'), 'utf8')); } catch { return {}; } })();
+const DRONE_ON = CFGJ.drone !== false;
+const bearing = (p, q) => { const R = Math.PI / 180, y = Math.sin((q[0] - p[0]) * R) * Math.cos(q[1] * R), x = Math.cos(p[1] * R) * Math.sin(q[1] * R) - Math.sin(p[1] * R) * Math.cos(q[1] * R) * Math.cos((q[0] - p[0]) * R); return (Math.atan2(y, x) / R + 360) % 360; };
+const near180 = (h, ref) => { const d = ((h - ref) % 360 + 540) % 360 - 180; return Math.abs(d) > 90 ? (h + 180) % 360 : h; };   // a way has two directions: the one nearer the camera's own
+const nearH = (h, ref) => ref + (((h - ref) % 360 + 540) % 360 - 180);   // the same heading, written so the camera turns the short way
+// the axis of the water through a strait: its own lane (KEY_...), else the nearest lane within 60 km, at the point nearest the place
+const axisAt = (k, pt) => {
+  const own = Object.keys(PL.lanes).filter(l => l === k || l.startsWith(k + '_')), pool = own.length ? own : Object.keys(PL.lanes);
+  let best = null;
+  for (const l of pool) { const P2 = PL.lanes[l].pts; P2.forEach((q, i) => { const d = hav(q, pt); if (!best || d < best.d) best = { d, h: bearing(P2[Math.max(0, i - 1)], P2[Math.min(P2.length - 1, i + 1)]) }; }); }
+  return best && (own.length || best.d < 60) ? best.h : null; };
+const step = (F, h, d) => ({ lon: r3(F.lon + Math.sin(h * Math.PI / 180) * d / kx(F.lat)), lat: r3(F.lat + Math.cos(h * Math.PI / 180) * d) });
+// strait / canal = fly along it; port, base, city, island, capital = a slow orbit around it; mountain = rise over the crest;
+// two neighbours and no place = fly along their border; a list of countries, a whole route, a comparison or a pull-out = the satellite, high
+const droneMode = (F, main, ctrs, fx) => {
+  if (!DRONE_ON || !F || F.span > 6.5 || ['تتبع', 'مقارنة', 'ابتعاد'].includes(fx)) return null;
+  if (main && !main.new) { const kd = main.p.kind;
+    if ((kd === 'strait' || kd === 'canal') && axisAt(main.k, main.p.pt) != null) return 'along';
+    if (['mountain', 'peak', 'range'].includes(kd)) return 'reveal';
+    return 'orbit'; }
+  if (main) return 'orbit';
+  if (ctrs.length === 2) { const [p1, p2] = ctrs.map(e => e.c.bb); if (p1[0] <= p2[2] && p2[0] <= p1[2] && p1[1] <= p2[3] && p2[1] <= p1[3]) return 'border'; }
+  return null; };
+let ph = 0, pmode = null, orbitDir = 1;
+report.hops = 0; report.drone = {};
+
 LINES.forEach(([a, b], li) => {
   const p = PLAN.find(x => x.n === li + 1) || PLAN[li] || {}, L0 = ts(a), L1 = te(b), nextA = li + 1 < LINES.length ? LINES[li + 1][0] : null;
   const UNTIL = nextA != null ? A(nextA) : A(b, true, .6), words = WORDS.slice(a, b + 1).map(w => w[0]);
@@ -159,13 +186,33 @@ LINES.forEach(([a, b], li) => {
     let arrive = li === 0 ? 0 : Math.min(L0 + Math.min(1.8, .6 + .35 * big), firstNamed ? ts(firstNamed.i) + .25 : L1 - .4);
     arrive = Math.max(arrive, li === 0 ? 0 : L0 + .35);
     const k = (() => { let best = a; for (let i = a; i <= b; i++) if (ts(i) <= arrive) best = i; return best; })();
-    const at = li === 0 ? '0' : A(k, false, arrive - ts(k));
+    // phase 2: a far place is reached by a hop (up to continent height, then a dive), not by a flat slide across the map
+    const dist = prev ? hav([prev.lon, prev.lat], [F.lon, F.lat]) / 111.2 : 0;
+    const hop = li > 0 && prev && dist > 3 * Math.min(prev.span, F.span) && dist > Math.max(prev.span, F.span) * .6;   // (a wider frame that holds both is a pull-out, not a hop)
+    if (hop) { const td = te(LINES[li - 1][1]); arrive = Math.min(Math.max(L0 + 1.7, td + 1.9), Math.max(L1 - .3, L0 + .8)); }
+    const kAt = t => { let best = 0; for (let i = 0; i < WORDS.length; i++) if (ts(i) <= t) best = i; return best; };
+    const k2 = kAt(arrive), at = li === 0 ? '0' : A(k2, false, arrive - ts(k2));
     if (!firstShot) firstShot = { F: { ...F }, li, key: cams.length };
-    if (li === 0) { firstFrame = { ...F }; cams.push(`cam(0, { lon: ${F.lon}, lat: ${F.lat}, span: ${r2(F.span * 1.25)} });   // opening: ${why}, a little wider`); }
-    else if (!prev || far(prev, F) > .18) cams.push(`cam(${at}, { lon: ${F.lon}, lat: ${F.lat}, span: ${F.span}, ease: 'io'${fx === 'غوص' || (prev && F.span < prev.span / 4) ? ', dive: true' : ''} });   // ${why}`);
-    // the hold key: the camera stays on what is being described and keeps a slow push until the line ends
-    cams.push(`cam(${A(b, true)}, { lon: ${F.lon}, lat: ${F.lat}, span: ${r2(F.span * .93)}, ease: 'sine' });   // hold`);
-    prev = { ...F, span: r2(F.span * .93) };
+    // phase 4: the drone move of the line, from the kind of place it shows
+    if (hop) { ph = 0; pmode = null; }   // the hop passes through the satellite (north up): the next drone move starts from there
+    let mode = droneMode(F, main, ctrs, fx); if (!mode && why === 'slow push' && pmode) mode = pmode;
+    const d = F.span * .16; let A0 = { lon: F.lon, lat: F.lat }, A1 = A0, h0 = 0, h1 = 0, p0 = null, p1 = null;
+    if (mode === 'orbit') { h0 = pmode ? ph : 0; if (why !== 'slow push') orbitDir = -orbitDir; h1 = h0 + 32 * orbitDir; }   // a new place turns the other way; a held one keeps turning
+    else if (mode === 'along') { const h = main && !main.new ? nearH(near180(axisAt(main.k, main.p.pt), ph), ph) : ph;   // a held line keeps flying the same way
+      h0 = h1 = h; A0 = step(F, h, -d); A1 = step(F, h, d); }
+    else if (mode === 'border') { const [c1, c2] = ctrs.map(e => e.c), h = c2 ? nearH(near180((bearing([c1.lx, c1.ly], [c2.lx, c2.ly]) + 90) % 360, ph), ph) : ph; h0 = h1 = h; A0 = step(F, h, -d); A1 = step(F, h, d); }
+    else if (mode === 'reveal') { h0 = h1 = pmode ? ph : 0; p0 = 22; p1 = 56; A0 = step(F, h0, -d * 1.4); }
+    const dk = (h, p) => mode ? `, drone: true, heading: ${r2(h)}${p != null ? `, pitch: ${p}` : ''}` : '';
+    if (mode) report.drone[mode] = (report.drone[mode] || 0) + 1;
+    if (li === 0) { firstFrame = { ...F }; cams.push(`cam(0, { lon: ${A0.lon}, lat: ${A0.lat}, span: ${r2(F.span * 1.25)}${dk(h0, p0)} });   // opening: ${why}, a little wider${mode ? ' (drone: ' + mode + ')' : ''}`); }
+    else {
+      if (hop) { const mid = { lon: r3(prev.lon + (((F.lon - prev.lon) % 360 + 540) % 360 - 180) / 2), lat: r3((prev.lat + F.lat) / 2) }, td = te(LINES[li - 1][1]), tp = td + (arrive - td) * .45, kp = kAt(tp);
+        cams.push(`cam(${A(kp, false, tp - ts(kp))}, { lon: ${mid.lon}, lat: ${mid.lat}, span: ${r2(Math.min(75, Math.max(dist * 1.4, Math.max(prev.span, F.span) * 1.8)))}, ease: 'io' });   // hop: up over the map (${Math.round(dist * 111)} km)`); report.hops++; }
+      if (hop || !prev || far(prev, F) > .18 || mode !== pmode || Math.abs(h0 - ph) > 5) cams.push(`cam(${at}, { lon: ${A0.lon}, lat: ${A0.lat}, span: ${F.span}, ease: 'io'${hop || fx === 'غوص' || (prev && F.span < prev.span / 4) ? ', dive: true' : ''}${dk(h0, p0)} });   // ${why}${mode ? ' (drone: ' + mode + ')' : ''}`);
+    }
+    // the hold key: the camera stays on what is being described and keeps a slow push (the drone keeps flying its move) until the line ends
+    cams.push(`cam(${A(b, true)}, { lon: ${A1.lon}, lat: ${A1.lat}, span: ${r2(F.span * .93)}, ease: 'sine'${dk(h1, p1)} });   // hold`);
+    prev = { ...F, lon: A1.lon, lat: A1.lat, span: r2(F.span * .93) }; ph = mode ? h1 : 0; pmode = mode;
   }
   // ---- the look of the line
   if ((fx === 'ليل' || fx === 'خطر') && !night) { use('mapStyle'); item(`mapStyle('night', ${A(a)});`, 'night'); night = true; }
@@ -260,13 +307,15 @@ LINES.forEach(([a, b], li) => {
   if (p0.craft && p0.lane && PL.lanes[p0.lane] && TOPS.has(p0.craft) && (CRAFT[p0.craft] || {}).m === 'sea') { use('sprite', 'lane');
     item(`sprite('${p0.craft}', null, { at: ${A(a, false, 1.0)}, early: 0, along: lane('${p0.lane}'), travel: ${r2(Math.max(4, te(b) - ts(a) + 2.5) * 1.6)}, sfx: false });   // the loop: the opening ship again`, `craft ${p0.craft}`, ts(a));
     use('path'); item(`path(lane('${p0.lane}'), { at: ${A(at)}, dur: .6, color: '#ff4757', width: 11, sea: true });`, 'loop route', ts(at)); }
-  if (firstFrame) cams.push(`cam(${A(b, true, 1.0)}, { lon: ${firstFrame.lon}, lat: ${firstFrame.lat}, span: ${r2(firstFrame.span * 1.25)}, ease: 'io' });   // loop: back to the opening frame`); }
+  if (firstFrame && prev && hav([prev.lon, prev.lat], [firstFrame.lon, firstFrame.lat]) / 111.2 > 3 * Math.min(prev.span, firstFrame.span) && hav([prev.lon, prev.lat], [firstFrame.lon, firstFrame.lat]) / 111.2 > Math.max(prev.span, firstFrame.span) * .6) {   // a far loop is a hop too
+    const dd = hav([prev.lon, prev.lat], [firstFrame.lon, firstFrame.lat]) / 111.2;
+    cams.push(`cam(${A(b, true, .45)}, { lon: ${r3(prev.lon + (((firstFrame.lon - prev.lon) % 360 + 540) % 360 - 180) / 2)}, lat: ${r3((prev.lat + firstFrame.lat) / 2)}, span: ${r2(Math.min(75, Math.max(dd * 1.4, Math.max(prev.span, firstFrame.span) * 1.8)))}, ease: 'io' });   // hop: the loop goes home over the map`); report.hops++; }
+  if (firstFrame) cams.push(`cam(${A(b, true, 1.0)}, { lon: ${firstFrame.lon}, lat: ${firstFrame.lat}, span: ${r2(firstFrame.span * 1.25)}, ease: 'io', dive: true });   // loop: back to the opening frame`); }
 
 // ---- the «مَدار» opening (2026-11-17): every film starts in orbit, the whole Earth turning, then one fast smooth dive
 // lands on the first place by ~2.2 s, while the hook title is already on screen from frame 0. The viewer knows WHERE in the
 // world before the first fact, the first second moves, and it is the channel's own signature (مَدار = orbit).
 // config.json "opening": false keeps the old opening; the end of the film pulls back to the landing frame (the Shorts loop).
-const CFGJ = (() => { try { return JSON.parse(fs.readFileSync(path.join(proj, 'config.json'), 'utf8')); } catch { return {}; } })();
 if (firstShot && CFGJ.opening !== false) {
   const F = firstShot.F, LAND = 2.2, wrap = x => ((x + 540) % 360) - 180;
   const land = { lon: F.lon, lat: F.lat, span: r2(firstShot.li === 0 ? F.span * 1.25 : Math.min(40, Math.max(8, F.span * 5))) };
@@ -294,5 +343,5 @@ const story = path.join(proj, 'web', 'story.js');
 if (fs.existsSync(story) && !/Written by engine\/scripts\/director\.mjs/.test(fs.readFileSync(story, 'utf8'))) fs.copyFileSync(story, path.join(proj, 'web', 'story.prev.js'));
 fs.writeFileSync(story, src);
 fs.writeFileSync(path.join(proj, 'director.json'), JSON.stringify(report, null, 1));
-console.log(`director: ${LINES.length} lines, ${cams.length} camera keys, ${out.filter(x => !x.startsWith('\n')).length} items${report.dropped.length ? `, ${report.dropped.length} dropped by the logic gate` : ''} -> ${story}`);
+console.log(`director: ${LINES.length} lines, ${cams.length} camera keys, ${report.hops} hop(s), drone ${JSON.stringify(report.drone)}, ${out.filter(x => !x.startsWith('\n')).length} items${report.dropped.length ? `, ${report.dropped.length} dropped by the logic gate` : ''} -> ${story}`);
 for (const n of report.notes) console.log('  ' + n);

@@ -21,6 +21,7 @@ const CFG = await getJSON('config.json', {});
 const TIMING = await getJSON('timing.json', { words: [], dur: 10 });
 const WORLD = await getJSON('/data/world.json', { countries: [] });
 const PATCHES = await getJSON('img/patches.json', []);
+const DEMS = await getJSON('img/dems.json', []);   // smart camera phase 3: terrain heights (prep.py: AWS Terrain Tiles, plate carree) [{src, bb, hmax}]
 const RIVERS = await getJSON('/data/rivers.json', { rivers: [] });
 const PLACES = await getJSON('/data/places.json', { places: {}, lanes: {}, pipelines: {} });   // speed plan item 9: checked places and sea lanes
 // spot('HORMUZ') -> [lon, lat] | lane('HORMUZ_GATE') -> [[lon, lat], ...] (a sea route, use it with path(..., {sea:true}) or sprite along)
@@ -66,19 +67,28 @@ export const T = when;
 
 // ------------------------------------------------------------------ camera
 // keys: {t, lon, lat, span (degrees of arc across the frame width), cy (0..1 screen height of the centre), roll, ease, dive}
+// Smart camera phase 3 (2026-11-17): + drone (true / 0..1), pitch (deg, 0 = straight down), heading (deg the camera faces, 0 = north up).
+// drone:true tilts the camera more the lower it flies (autoPitch) and brings the eye to a real perspective height over 3D terrain.
 const CAMS = [];
-export function cam(t, o) { CAMS.push({ t: when(t), cy: .42, ease: 'io', ...o }); CAMS.sort((a, b) => a.t - b.t); }
+export function cam(t, o) { CAMS.push({ t: when(t), cy: .42, ease: 'io', ...o, dr: o.drone === true ? 1 : +(o.drone || 0) }); CAMS.sort((a, b) => a.t - b.t); }
 const kOf = span => W / (span * D2R);   // pixels per radian at the centre
+// the satellite stays straight down above ~7 degrees of frame; below, the drone leans in: 34 deg at 2, 49 at .6, 60 at .2 and closer
+export const autoPitch = span => clamp(Math.log(7 / span) / Math.log(7 / .2)) ** .55 * 60;
+const keyPitch = k => k.pitch != null ? k.pitch : k.dr * autoPitch(k.span);
 export function camAt(t) {
-  if (!CAMS.length) return { lon: 0, lat: 20, span: 140, cy: .42, roll: 0 };
-  if (t <= CAMS[0].t) return { ...CAMS[0] }; const L = CAMS[CAMS.length - 1]; if (t >= L.t) return { ...L };
+  if (!CAMS.length) return { lon: 0, lat: 20, span: 140, cy: .42, roll: 0, pitch: 0, head: 0, dr: 0 };
+  const one = k => ({ ...k, pitch: keyPitch(k), head: k.heading || 0, dr: k.dr || 0 });
+  if (t <= CAMS[0].t) return one(CAMS[0]); const L = CAMS[CAMS.length - 1]; if (t >= L.t) return one(L);
   let i = 0; while (CAMS[i + 1].t < t) i++;
   const a = CAMS[i], b = CAMS[i + 1], u = (t - a.t) / (b.t - a.t), e = EASE[b.ease] || EASE.io;
   const z = e(u); let c = z;
   if (b.dive) { c = EASE.out(clamp(u * 1.25)); }      // a dive turns to the target first, then falls in
   let dl = b.lon - a.lon; if (dl > 180) dl -= 360; if (dl < -180) dl += 360;
-  const ls = Math.log(a.span), le = Math.log(b.span);
-  return { lon: a.lon + dl * c, lat: lerp(a.lat, b.lat, c), span: Math.exp(lerp(ls, le, z)), cy: lerp(a.cy, b.cy, z), roll: lerp(a.roll || 0, b.roll || 0, z) };
+  const ls = Math.log(a.span), le = Math.log(b.span), span = Math.exp(lerp(ls, le, z)), dr = lerp(a.dr || 0, b.dr || 0, z);
+  // the tilt follows the height while it falls (no explicit pitch on either key), else it moves from one key's pitch to the other's
+  const pitch = a.pitch == null && b.pitch == null ? dr * autoPitch(span) : lerp(keyPitch(a), keyPitch(b), z);
+  let dh = (b.heading || 0) - (a.heading || 0); if (dh > 180) dh -= 360; if (dh < -180) dh += 360;
+  return { lon: a.lon + dl * c, lat: lerp(a.lat, b.lat, c), span, cy: lerp(a.cy, b.cy, z), roll: lerp(a.roll || 0, b.roll || 0, z), pitch, head: (a.heading || 0) + dh * z, dr };
 }
 // punch(t, {amt:.14, dur:.55})  a snap zoom-in that eases back  |  shake(t, {amt:1, dur:.45})  a decaying hand-held jolt
 const FX = [];
@@ -99,15 +109,75 @@ export function camFinal(t) {
   }
   return c;
 }
-let C = null;   // the camera of the frame being drawn: {l0, p0, k, cx, cy, sp, cp}
-function setCam(c) { C = { l0: c.lon * D2R, p0: c.lat * D2R, k: kOf(c.span), cx: W / 2, cy: c.cy * H, span: c.span }; C.sp = Math.sin(C.p0); C.cp = Math.cos(C.p0); }
-// lon/lat -> screen [x, y, front]; points on the far side are pushed to the horizon
-export function P(lon, lat) {
+let C = null;   // the camera of the frame being drawn: {l0, p0, k, cx, cy, sp, cp} (+ the drone: tilt, R/F/U, invD, vb)
+// Smart camera phase 3: one camera family from the satellite to the drone. Rays leave the image plane through the target T
+// (screen point (cx, cy)) as Q = T + R*sx + U*sy, going F + (R*sx + U*sy)*invD. invD = 0 and pitch 0 is exactly the old
+// orthographic globe (so a shot never cuts when the drone takes over); invD > 0 puts the eye at 1/invD earth radii behind T.
+// Vectors live in the local east/north/up frame of T (earth centre at (0,0,-1)): every number stays small and precise.
+export const DRONE = { hfov: CFG.droneFov ?? 64, exag: CFG.exag ?? 1.5 };
+function setCam(c) {
+  C = { l0: c.lon * D2R, p0: c.lat * D2R, k: kOf(c.span), cx: W / 2, cy: c.cy * H, span: c.span }; C.sp = Math.sin(C.p0); C.cp = Math.cos(C.p0);
+  const pt = (c.pitch || 0) * D2R, hd = (c.head || 0) * D2R, w = c.dr || 0;
+  C.tilt = pt > 1e-5 || Math.abs(hd) > 1e-6 || w > 1e-5; C.w = w; C.pitch = pt; C.head = hd;
+  if (!C.tilt) { C.invD = 0; C.vb = null; C.hs = 0; return; }
+  const sh = Math.sin(hd), ch = Math.cos(hd), sp = Math.sin(pt), cp = Math.cos(pt);
+  C.R = [ch, -sh, 0]; C.F = [sp * sh, sp * ch, -cp]; C.U = [cp * sh, cp * ch, sp];
+  C.invD = w * Math.tan(DRONE.hfov / 2 * D2R) / (W / 2 / C.k);
+  C.hs = w * DRONE.exag / 6371;   // terrain: earth radii per km of height (fades in with the drone)
+  C.dem = demFor(c.lon, c.lat);
+  C.vb = viewBox();
+}
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+// ENU position (relative to T) of lon/lat at height hkm, and of the same point relative to the earth's centre
+function enu(lon, lat, hkm = 0) {
+  const l = lon * D2R - C.l0, p = lat * D2R, d = p - C.p0, cp = Math.cos(p), s2 = Math.sin(l / 2), h1 = 2 * s2 * s2, r = 1 + hkm / 6371;
+  const e = cp * Math.sin(l) * r, n = (Math.sin(d) + C.sp * cp * h1) * r, u = (Math.cos(d) - C.cp * cp * h1) * r;
+  return [e, n, u];   // relative to the earth's centre; T is (0, 0, 1)
+}
+function projRel(X) {   // centre-relative ENU point -> [x, y, front, scale]
+  let front = true;
+  if (C.invD < 1e-9) { if (-dot3(X, C.F) < 0) { front = false; const k = dot3(X, C.F); X = [X[0] - C.F[0] * k, X[1] - C.F[1] * k, X[2] - C.F[2] * k]; const r = Math.hypot(...X) || 1; X = X.map(v => v / r); } }
+  else {
+    const D = 1 / C.invD, E = [-C.F[0] * D, -C.F[1] * D, 1 - C.F[2] * D], el = Math.hypot(...E), xl = Math.hypot(...X);
+    if (dot3(X, E) / xl < 1) {   // behind the bulge of the earth: pushed to the horizon, as the globe does
+      front = false; const Eh = E.map(v => v / el), k = dot3(X, Eh), v = [X[0] - Eh[0] * k, X[1] - Eh[1] * k, X[2] - Eh[2] * k], vl = Math.hypot(...v) || 1, rr = Math.sqrt(Math.max(0, 1 - 1 / (el * el)));
+      X = [Eh[0] / el + v[0] / vl * rr, Eh[1] / el + v[1] / vl * rr, Eh[2] / el + v[2] / vl * rr]; }
+  }
+  const rel = [X[0], X[1], X[2] - 1], z = dot3(rel, C.F), den = Math.max(1e-4, 1 + z * C.invD);
+  return [C.cx + dot3(rel, C.R) / den * C.k, C.cy - dot3(rel, C.U) / den * C.k, front, 1 / den];
+}
+// screen -> [lon, lat, s] on the sphere (s = distance past the target's image plane, earth radii) or null for the sky
+function unproject(px, py) {
+  const sx = (px - C.cx) / C.k, sy = (C.cy - py) / C.k, q = [C.R[0] * sx + C.U[0] * sy, C.R[1] * sx + C.U[1] * sy, C.U[2] * sy];
+  const d = [C.F[0] + q[0] * C.invD, C.F[1] + q[1] * C.invD, C.F[2] + q[2] * C.invD], O = [q[0], q[1], q[2] + 1];
+  const a = dot3(d, d), b = dot3(O, d), c = dot3(q, q) + 2 * q[2], disc = b * b - a * c; if (disc < 0) return null;
+  const s = -b + Math.sqrt(disc) > 0 ? c / (-b + Math.sqrt(disc)) : (-b - Math.sqrt(disc)) / a; if (C.invD > 0 && s * C.invD <= -1) return null; const X = [O[0] + d[0] * s, O[1] + d[1] * s, O[2] + d[2] * s];
+  const x = C.cp * X[2] - X[1] * C.sp, y = X[0], z = C.sp * X[2] + X[1] * C.cp;
+  return [(C.l0 + Math.atan2(y, x)) / D2R, Math.atan2(z, Math.hypot(x, y)) / D2R, s];
+}
+// what the tilted camera sees (up to where the haze is thick): [w, s, e, n], for culling, patches and the land mask
+function viewBox() {
+  const far = W / C.k * 9; let w = 1e9, s = 1e9, e = -1e9, n = -1e9, sky = false;
+  for (let i = 0; i <= 8; i++) for (let j = 0; j <= 14; j++) { const g = unproject(W * i / 8, H * j / 14); if (!g || g[2] > far) { sky = true; continue; }
+    let lo = g[0]; while (lo - C.l0 / D2R > 180) lo -= 360; while (lo - C.l0 / D2R < -180) lo += 360;
+    w = Math.min(w, lo); e = Math.max(e, lo); s = Math.min(s, g[1]); n = Math.max(n, g[1]); }
+  if (w > e) return null; const mx = (e - w) * .08 + .01, my = (n - s) * .08 + .01; return [w - mx, s - my, e + mx, n + my, sky];
+}
+// does a lon/lat box touch what this frame shows? (the satellite: a box around the centre; the drone: its view box)
+function nearView(w, s, e, n) {
+  if (C.tilt) { const v = C.vb; if (!v) return false; if (v[4] && C.span >= 20) return true; const L = C.l0 / D2R; let a = w, b = e; while (a - L > 180) { a -= 360; b -= 360; } while (b - L < -180) { a += 360; b += 360; } return !(b < v[0] || a > v[2] || n < v[1] || s > v[3]); }
+  if (C.span >= 60) return true;
+  const lon = C.l0 / D2R, lat = C.p0 / D2R, hx = Math.min(W / C.k, 3.2) / D2R / Math.max(.15, C.cp), hy = Math.min(H / C.k * 1.2, 3.2) / D2R;
+  return !(e < lon - hx || w > lon + hx || n < lat - hy || s > lat + hy);
+}
+// lon/lat -> screen [x, y, front, scale]; points on the far side are pushed to the horizon. On the drone, points sit on the terrain.
+export function P(lon, lat, hkm) {
+  if (C.tilt) return projRel(enu(lon, lat, hkm ?? (C.hs ? heightAt(lon, lat) * DRONE.exag * C.w : 0)));
   const l = lon * D2R - C.l0, p = lat * D2R, cl = Math.cos(l), cp = Math.cos(p), sp = Math.sin(p);
   const cosc = C.sp * sp + C.cp * cp * cl;
   let x = cp * Math.sin(l), y = C.cp * sp - C.sp * cp * cl;
   if (cosc < 0) { const r = Math.hypot(x, y) || 1; x /= r; y /= r; }
-  return [C.cx + x * C.k, C.cy - y * C.k, cosc >= 0];
+  return [C.cx + x * C.k, C.cy - y * C.k, cosc >= 0, 1];
 }
 export const pxPerKm = () => C.k / 6371;
 
@@ -124,31 +194,16 @@ uniform vec4 bb[${NP}]; uniform int np;
 uniform vec2 res; uniform vec2 ctr; uniform float R; uniform float l0; uniform float ph0; uniform float t;
 uniform float ocean; uniform float dimv; uniform float sat; uniform float roll; uniform sampler2D mask; uniform float look;
 uniform vec3 stA; uniform vec3 stB; uniform float stP; uniform float stRtl;   // v5 map worlds (flat, sepia, night) + wipe
+// smart camera phase 3: the tilted / perspective camera (see setCam), the terrain (DEM, km in .r) and the air
+uniform float tilt; uniform vec3 cR; uniform vec3 cF; uniform vec3 cU; uniform float invD; uniform float wdr;
+uniform sampler2D dem; uniform vec4 dbb; uniform float hs; uniform float hmax; uniform vec3 sunL; uniform vec2 dtx;
 out vec4 o;
 const float PI = 3.14159265;
 float h21(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
-void main(){
-  vec2 f = vec2(gl_FragCoord.x, res.y - gl_FragCoord.y);
-  vec2 d = (f - ctr) / R; d = vec2(d.x*cos(roll) - d.y*sin(roll), d.x*sin(roll) + d.y*cos(roll));
-  float x = d.x, y = -d.y, rho = length(vec2(x, y));
-  // space + atmosphere
-  float edge = rho - 1.;
-  vec3 sky = mix(vec3(.012,.02,.05), vec3(.03,.06,.14), clamp(1.2 - rho*.35, 0., 1.));
-  float st = step(.9975, h21(floor(f/2.))) * (.4 + .6*h21(floor(f/2.)+3.)); sky += st*.8*clamp(edge*2., 0., 1.);
-  float atm = exp(-max(edge, 0.) * 9.) * .85;
-  if (rho > 1.) { o = vec4(sky + vec3(.32,.58,1.)*atm*smoothstep(0., .02, edge+.02), 1.); return; }
-  float cosc = sqrt(max(0., 1. - rho*rho));
-  float sp = sin(ph0), cp = cos(ph0);
-  float lat = asin(clamp(cosc*sp + y*cp, -1., 1.));
-  float lonr = atan(x, cp*cosc - y*sp);            // longitude relative to the centre: continuous on screen
-  float lon = l0 + lonr;
-  float lonD = lon * 57.2957795, latD = lat * 57.2957795, lonrD = lonr*57.2957795;
-  // base texture with gradients from the continuous coordinate (no seam at the date line)
+// the picture of the ground at lon/lat (degrees; lonrD = relative to the centre, continuous) with its screen slopes
+vec3 ground(float lonD, float latD, float lonrD, vec2 gxl, vec2 gyl, vec2 fc){
   vec2 ub = vec2(fract((lonD + 180.)/360.), (90. - latD)/180.);
-  vec2 uc = vec2(lonrD/360., (90. - latD)/180.);
-  vec3 c = textureGrad(base, ub, dFdx(uc), dFdy(uc)).rgb;
-  // detail patches in the order drawGlobe chose (screen slopes taken here, outside the branch)
-  vec2 gxl = vec2(dFdx(lonrD), dFdx(latD)), gyl = vec2(dFdy(lonrD), dFdy(latD));
+  vec3 c = textureGrad(base, ub, vec2(gxl.x/360., -gxl.y/180.), vec2(gyl.x/360., -gyl.y/180.)).rgb;
   for (int i = 0; i < ${NP}; i++) {
     if (i >= np) break;
     vec4 b = bb[i]; float L = lonD; if (L < b.x - 180.) L += 360.; if (L > b.z + 180.) L -= 360.;
@@ -163,7 +218,7 @@ void main(){
   }
   // even out the ocean mosaic: dark bluish water -> one deep sea colour (shallows and land untouched)
   float lu = dot(c, vec3(.299,.587,.114));
-  float land = texture(mask, vec2(gl_FragCoord.x/res.x, 1. - gl_FragCoord.y/res.y)).r;   // Natural Earth land, drawn each frame
+  float land = texture(mask, vec2(fc.x/res.x, 1. - fc.y/res.y)).r;   // Natural Earth land, drawn each frame
   float water = (1. - land) * smoothstep(.42, .2, lu);
   vec3 sea = look > .5 ? vec3(.10,.34,.41) * (.55 + 2.9*lu) : vec3(.035,.10,.20) * (.8 + 1.4*lu);
   c = mix(c, sea, water*ocean);
@@ -171,7 +226,7 @@ void main(){
   float g = dot(c, vec3(.299,.587,.114)); c = mix(vec3(g), c, sat); c *= dimv;
   if (look > .5) c = pow(c, vec3(1.18)) * .97;   // atlas: calmer desert, a little more contrast
   // v5 worlds: the new style sweeps in across the frame (reading direction) behind a bright edge
-  float wx = stRtl > .5 ? 1. - gl_FragCoord.x/res.x : gl_FragCoord.x/res.x;
+  float wx = stRtl > .5 ? 1. - fc.x/res.x : fc.x/res.x;
   float wm = 1. - smoothstep(stP - .035, stP + .035, wx);
   vec3 sw = mix(stA, stB, wm);
   if (sw.x + sw.y + sw.z > .001) {
@@ -183,10 +238,100 @@ void main(){
   }
   float ed = exp(-pow((wx - stP)/.007, 2.)) * step(.001, distance(stA, stB)) * step(-.01, stP) * step(stP, 1.01);
   c += vec3(1., .9, .62) * ed * .85;
-  // sphere shading + limb haze
-  vec3 n = vec3(x, y, cosc); float lam = .78 + .32*dot(n, normalize(vec3(-.45,.5,.75)));
-  float limb = pow(1. - cosc, 3.);
-  c = c*mix(1., lam, clamp(1.4 - R/4000., 0., 1.)) + vec3(.3,.55,1.)*limb*.55;
+  return c;
+}
+vec3 space(vec2 f, float rho){
+  float edge = rho - 1.;
+  vec3 sky = mix(vec3(.012,.02,.05), vec3(.03,.06,.14), clamp(1.2 - rho*.35, 0., 1.));
+  float st = step(.9975, h21(floor(f/2.))) * (.4 + .6*h21(floor(f/2.)+3.)); sky += st*.8*clamp(edge*2., 0., 1.);
+  float atm = exp(-max(edge, 0.) * 9.) * .85;
+  return sky + vec3(.32,.58,1.)*atm*smoothstep(0., .02, edge+.02);
+}
+// centre-relative ENU point -> lon (relative), lat in degrees, and its height above the sphere (earth radii)
+vec3 geo(vec3 X){
+  float sp = sin(ph0), cp = cos(ph0);
+  float x = cp*X.z - X.y*sp, y = X.x, z = sp*X.z + X.y*cp;
+  return vec3(atan(y, x)*57.2957795, atan(z, length(vec2(x, y)))*57.2957795, 0.);
+}
+float alt(vec3 q){ vec3 X = q + vec3(0., 0., 1.); return (dot(q, q) + 2.*q.z) / (length(X) + 1.); }   // |X| - 1 without cancellation
+float demKm(vec2 ll){   // terrain height (km) at lon (absolute), lat; 0 outside the DEM
+  vec2 uv = vec2((ll.x - dbb.x)/(dbb.z - dbb.x), (dbb.w - ll.y)/(dbb.w - dbb.y));
+  if (uv.x <= 0. || uv.x >= 1. || uv.y <= 0. || uv.y >= 1.) return 0.;
+  float edge = smoothstep(0., .07, min(min(uv.x, 1. - uv.x), min(uv.y, 1. - uv.y)));   // the grid's border sinks to the sea: no cliff
+  return max(textureLod(dem, uv, 0.).r, 0.) * edge;
+}
+void main(){
+  vec2 f = vec2(gl_FragCoord.x, res.y - gl_FragCoord.y);
+  if (tilt < .5) {   // the satellite: the orthographic globe exactly as before
+    vec2 d = (f - ctr) / R; d = vec2(d.x*cos(roll) - d.y*sin(roll), d.x*sin(roll) + d.y*cos(roll));
+    float x = d.x, y = -d.y, rho = length(vec2(x, y));
+    if (rho > 1.) { o = vec4(space(f, rho), 1.); return; }
+    float cosc = sqrt(max(0., 1. - rho*rho));
+    float sp = sin(ph0), cp = cos(ph0);
+    float lat = asin(clamp(cosc*sp + y*cp, -1., 1.));
+    float lonr = atan(x, cp*cosc - y*sp);            // longitude relative to the centre: continuous on screen
+    float lonD = (l0 + lonr) * 57.2957795, latD = lat * 57.2957795, lonrD = lonr*57.2957795;
+    vec2 gxl = vec2(dFdx(lonrD), dFdx(latD)), gyl = vec2(dFdy(lonrD), dFdy(latD));
+    vec3 c = ground(lonD, latD, lonrD, gxl, gyl, gl_FragCoord.xy);
+    // sphere shading + limb haze
+    vec3 n = vec3(x, y, cosc); float lam = .78 + .32*dot(n, normalize(vec3(-.45,.5,.75)));
+    float limb = pow(1. - cosc, 3.);
+    c = c*mix(1., lam, clamp(1.4 - R/4000., 0., 1.)) + vec3(.3,.55,1.)*limb*.55;
+    o = vec4(c, 1.); return;
+  }
+  // the drone: a ray from the image plane through the target, onto the sphere, then down onto the terrain
+  float sx = (f.x - ctr.x)/R, sy = (ctr.y - f.y)/R;
+  vec3 q = cR*sx + cU*sy, d = cF + q*invD, O = q + vec3(0., 0., 1.);
+  float a = dot(d, d), b = dot(O, d), c0 = dot(q, q) + 2.*q.z, disc = b*b - a*c0;
+  float vw = res.x / R;                               // the width of the view at the target, in earth radii
+  vec3 haze = mix(vec3(.62,.72,.84), vec3(.30,.40,.55), look > .5 ? 0. : .6) * dimv;
+  // the sky: deep blue above the haze of the horizon (space on the satellite end of the family)
+  float sMiss = -b/a; vec3 Pm = O + d*sMiss; float hc = length(Pm) - 1.;
+  vec3 air = mix(haze*1.08, vec3(.16,.34,.66)*dimv, smoothstep(0., max(.004, vw*.9), hc));
+  if (disc < 0.) { o = vec4(mix(space(f, 1. + hc*4.), air, wdr), 1.); return; }
+  float sq = sqrt(disc), sH = -b + sq > 0. ? c0/(-b + sq) : (-b - sq)/a;
+  if (invD > 0. && sH*invD <= -1.) { o = vec4(mix(space(f, 1.5), air, wdr), 1.); return; }
+  vec3 hp = q + d*sH;                                 // on the sphere (sea level): smooth, gives the texture slopes
+  vec3 gS = geo(hp + vec3(0., 0., 1.));
+  vec2 gxl = vec2(dFdx(gS.x), dFdx(gS.y)), gyl = vec2(dFdy(gS.x), dFdy(gS.y));
+  float sT = sH;
+  if (hs > 0. && hmax > 0.) {                         // march the shell between sea level and the highest peak of the DEM
+    float hm = hmax*hs, cs = c0 - (2.*hm + hm*hm), ds = b*b - a*cs;
+    if (ds > 0.) {
+      float s0 = -b + sqrt(ds) > 0. ? cs/(-b + sqrt(ds)) : (-b - sqrt(ds))/a;
+      if (invD > 0.) s0 = max(s0, -.999/invD);
+      float s1 = sH, prev = s0; bool hit = false;
+      for (int i = 1; i <= 56; i++) {
+        float s = mix(s0, s1, float(i)/56.); vec3 pp = q + d*s; vec3 g = geo(pp + vec3(0., 0., 1.));
+        if (alt(pp) <= demKm(vec2(l0*57.2957795 + g.x, g.y))*hs) { hit = true;
+          float lo = prev, hi = s;
+          for (int j = 0; j < 7; j++) { float m = .5*(lo + hi); vec3 pm = q + d*m; vec3 gm = geo(pm + vec3(0., 0., 1.));
+            if (alt(pm) <= demKm(vec2(l0*57.2957795 + gm.x, gm.y))*hs) hi = m; else lo = m; }
+          sT = hi; break; }
+        prev = s;
+      }
+    }
+  }
+  vec3 tp = q + d*sT, gT = geo(tp + vec3(0., 0., 1.));
+  float lonD = l0*57.2957795 + gT.x, latD = gT.y;
+  vec3 c = ground(lonD, latD, gT.x, gxl, gyl, gl_FragCoord.xy);
+  if (hs > 0.) {                                      // relief: light from the screen's upper left (the one sun of the shadows)
+    float e = dtx.x, nn = dtx.y, kmE = e*111.19*cos(latD*.0174533), kmN = nn*111.19;
+    float hx = (demKm(vec2(lonD + e, latD)) - demKm(vec2(lonD - e, latD))) / (2.*kmE) * hs*6371.;
+    float hy = (demKm(vec2(lonD, latD + nn)) - demKm(vec2(lonD, latD - nn))) / (2.*kmN) * hs*6371.;
+    vec3 nrm = normalize(vec3(-hx, -hy, 1.));
+    float sh = clamp(dot(nrm, sunL) / max(.2, sunL.z), .25, 1.7);
+    c *= mix(1., .35 + .65*sh, .8*wdr);
+  }
+  // the air: the farther the ground, the more it melts into the haze of the horizon
+  float far = max(0., sT) * sqrt(a);
+  float fog = (1. - exp(-far/(vw*3.2))) * .88 * wdr;
+  c = mix(c, haze, fog);
+  if (wdr < .999) {                                   // on the way down from the satellite: the globe's own shading fades out
+    vec3 Xs = hp + vec3(0., 0., 1.); float cosc = clamp(-dot(Xs, cF), 0., 1.);
+    float limb = pow(1. - cosc, 3.);
+    c = mix(c + vec3(.3,.55,1.)*limb*.55, c, wdr);
+  }
   o = vec4(c, 1.);
 }`;
 function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
@@ -213,9 +358,8 @@ const MASK = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, MASK);
 for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
 function landMaskCPU() {   // white land on black, quarter resolution, same projection (the v6 path: 73 ms a frame on globe shots; kept for CFG.mask = 'cpu' and checks)
   MX.setTransform(1, 0, 0, 1, 0, 0); MX.fillStyle = '#000'; MX.fillRect(0, 0, MK.width, MK.height); MX.setTransform(.25, 0, 0, .25, 0, 0); MX.fillStyle = '#fff';
-  const lon = C.l0 / D2R, lat = C.p0 / D2R, hx = Math.min(W / C.k, 3.2) / D2R / Math.max(.15, C.cp), hy = Math.min(H / C.k * 1.2, 3.2) / D2R;
   for (const c of WORLD.countries) {
-    if (C.span < 60 && (c.bb[2] < lon - hx || c.bb[0] > lon + hx || c.bb[3] < lat - hy || c.bb[1] > lat + hy)) continue;
+    if (!nearView(c.bb[0], c.bb[1], c.bb[2], c.bb[3])) continue;
     MX.fill(countryPath([c], 4).p, 'nonzero');
   }
   gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, MASK); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, MK); gl.uniform1i(U('mask'), 7);
@@ -247,14 +391,25 @@ const LMK = (() => {
   const mw = W / 4, mh = H / 4;
   const vs = `#version 300 es
   in vec2 ll; uniform float l0d; uniform float p0d; uniform float sp0; uniform float cp0; uniform float k; uniform vec2 ctr; uniform vec2 res;
+  uniform float tilt; uniform vec3 cR; uniform vec3 cF; uniform vec3 cU; uniform float invD;
   float S(float a){ return abs(a) < .05 ? a*(1. - a*a/6.*(1. - a*a/20.)) : sin(a); }   // exact for the tiny angles of close shots
   void main(){
     float l = (ll.x - l0d) * .0174532925199, d = (ll.y - p0d) * .0174532925199, p = ll.y * .0174532925199;
     float cp = cos(p), s2 = S(l * .5), h = 2.*s2*s2;           // 1 - cos(l), without the cancellation
     float x = cp*S(l), y = S(d) + sp0*cp*h;                       // = cos(p0) sin(p) - sin(p0) cos(p) cos(l)
     float cosc = cos(d) - cp0*cp*h;                               // = sin(p0) sin(p) + cos(p0) cos(p) cos(l)
-    if (cosc < 0.) { float r = length(vec2(x, y)); if (r > 0.) { x /= r; y /= r; } }
-    vec2 s = ctr + vec2(x, -y) * k;                               // screen pixels, as P()
+    vec2 s;
+    if (tilt < .5) {
+      if (cosc < 0.) { float r = length(vec2(x, y)); if (r > 0.) { x /= r; y /= r; } }
+      s = ctr + vec2(x, -y) * k;                                  // screen pixels, as P()
+    } else {                                                      // the drone camera, as projRel()
+      vec3 X = vec3(x, y, cosc);
+      if (invD < 1e-9) { if (dot(X, cF) > 0.) X = normalize(X - cF*dot(X, cF)); }
+      else { vec3 E = vec3(0., 0., 1.) - cF/invD; float el = length(E);
+        if (dot(X, E) < 1.) { vec3 Eh = E/el, v = X - Eh*dot(X, Eh); X = Eh/el + normalize(v)*sqrt(max(0., 1. - 1./(el*el))); } }
+      vec3 rel = X - vec3(0., 0., 1.); float den = max(1e-4, 1. + dot(rel, cF)*invD);
+      s = ctr + vec2(dot(rel, cR), -dot(rel, cU)) / den * k;
+    }
     gl_Position = vec4(s.x / res.x * 2. - 1., s.y / res.y * 2. - 1., 0., 1.);   // row 0 = top, like the canvas upload
   }`;
   const fs = `#version 300 es
@@ -289,6 +444,7 @@ const LMK = (() => {
     gl.useProgram(pf); gl.bindVertexArray(va);
     gl.uniform1f(u('l0d'), C.l0 / D2R); gl.uniform1f(u('p0d'), C.p0 / D2R); gl.uniform1f(u('sp0'), C.sp); gl.uniform1f(u('cp0'), C.cp); gl.uniform1f(u('k'), C.k);
     gl.uniform2f(u('ctr'), C.cx, C.cy); gl.uniform2f(u('res'), W, H);
+    gl.uniform1f(u('tilt'), C.tilt ? 1 : 0); if (C.tilt) { gl.uniform3fv(u('cR'), C.R); gl.uniform3fv(u('cF'), C.F); gl.uniform3fv(u('cU'), C.U); gl.uniform1f(u('invD'), C.invD); }
     gl.drawElements(gl.TRIANGLES, I.length, gl.UNSIGNED_INT, 0);
     const anti = antiRings();
     if (anti.some(frontOf)) { gl.disable(gl.STENCIL_TEST); gl.colorMask(true, true, true, true); gl.bindVertexArray(null); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(prog); gl.viewport(0, 0, W, H); return false; }
@@ -308,8 +464,8 @@ const landMask = () => CFG.mask === 'cpu' || window.MASK_CPU || !LMK.draw() ? la
 function pickPatches() {   // the patches this camera (C) draws with, in the order the shader tries them
   // patches that matter for this frame: those that intersect the view and are sharper than the base, finest first
   const hx = Math.min(W / 2 / C.k, 1.6) / D2R / Math.max(.2, C.cp), hy = Math.min(H / C.k, 1.6) / D2R;
-  const lon = C.l0 / D2R, lat = C.p0 / D2R;
-  const vis = PT.filter(p => p.bb[0] < lon + hx && p.bb[2] > lon - hx && p.bb[1] < lat + hy && p.bb[3] > lat - hy && p.d > 1304 * 1.1), need = C.k * (CFG.quality || 1);
+  const lon = C.l0 / D2R, lat = C.p0 / D2R, v = C.tilt && C.vb;
+  const vis = PT.filter(p => (v ? !(p.bb[2] < v[0] || p.bb[0] > v[2] || p.bb[3] < v[1] || p.bb[1] > v[3]) : p.bb[0] < lon + hx && p.bb[2] > lon - hx && p.bb[1] < lat + hy && p.bb[3] > lat - hy) && p.d > 1304 * 1.1), need = C.k * (CFG.quality || 1);
   // v6: a patch that is sharp enough for this zoom goes first, the widest of them first (it usually covers the whole view);
   // then the best of the too-coarse ones. (Finest-first left most of the frame on the blurry globe once a story had many patches.)
   return vis.filter(p => p.d >= need).sort((a, b) => a.d - b.d).concat(vis.filter(p => p.d < need).sort((a, b) => b.d - a.d)).slice(0, NP);
@@ -333,6 +489,43 @@ window.NEED = async t => {
   for (const p of PT) if (p.tex && p.last != null && p.last < t) { gl.deleteTexture(p.tex); p.tex = null; PT_STAT.freed++; }
 };
 window.PT_STAT = PT_STAT;
+// the terrain of the drone: each DEM decoded once (terrarium RGB -> km) into a float texture and a CPU copy for P()
+const PRE_DEM = [];
+const DEMT = DEMS.map(d => ({ ...d, tex: null, km: null, w: 0, h: 0 }));
+for (const d of DEMT) PRE_DEM.push((async () => {
+  const bm = await createImageBitmap(await (await fetch('img/' + d.src)).blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const oc = new OffscreenCanvas(bm.width, bm.height), ox = oc.getContext('2d', { willReadFrequently: true }); ox.drawImage(bm, 0, 0);
+  const px = ox.getImageData(0, 0, bm.width, bm.height).data, km = new Float32Array(bm.width * bm.height);
+  for (let i = 0, j = 0; j < km.length; i += 4, j++) km[j] = Math.max(0, (px[i] * 256 + px[i + 1] + px[i + 2] / 256 - 32768) / 1000);
+  d.w = bm.width; d.h = bm.height; d.km = km; bm.close();
+  d.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, d.tex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, d.w, d.h, 0, gl.RED, gl.FLOAT, km);
+  for (const [a, b] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, a, b);
+  if (d.hmax == null) { let m = 0; for (const v of km) if (v > m) m = v; d.hmax = m; }
+})());
+function demFor(lon, lat) { let best = null; for (const d of DEMT) if (d.km && lon > d.bb[0] && lon < d.bb[2] && lat > d.bb[1] && lat < d.bb[3] && (!best || (d.bb[2] - d.bb[0]) < (best.bb[2] - best.bb[0]))) best = d; return best; }
+export function heightAt(lon, lat) {   // km above the sea (0 at sea and outside the terrain of this shot)
+  const d = C && C.dem; if (!d) return 0;
+  const u = (lon - d.bb[0]) / (d.bb[2] - d.bb[0]) * d.w - .5, v = (d.bb[3] - lat) / (d.bb[3] - d.bb[1]) * d.h - .5;
+  if (u < 0 || v < 0 || u >= d.w - 1 || v >= d.h - 1) return 0;
+  const i = u | 0, j = v | 0, fu = u - i, fv = v - j, k = d.km, w = d.w, a = k[j * w + i], b = k[j * w + i + 1], c = k[(j + 1) * w + i], e = k[(j + 1) * w + i + 1];
+  const m = Math.min(u, d.w - 1 - u, v, d.h - 1 - v) / Math.min(d.w, d.h), x = clamp(m / .07);
+  return lerp(lerp(a, b, fu), lerp(c, e, fu), fv) * x * x * (3 - 2 * x);
+}
+const ZERO = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, ZERO); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, 1, 1, 0, gl.RED, gl.FLOAT, new Float32Array([0]));
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+function droneUniforms() {
+  gl.uniform1f(U('tilt'), C.tilt ? 1 : 0); if (!C.tilt) return;
+  gl.uniform3fv(U('cR'), C.R); gl.uniform3fv(U('cF'), C.F); gl.uniform3fv(U('cU'), C.U); gl.uniform1f(U('invD'), C.invD); gl.uniform1f(U('wdr'), C.w);
+  const d = C.dem && C.hs > 0 ? C.dem : null;
+  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, d ? d.tex : ZERO); gl.uniform1i(U('dem'), 6);
+  gl.uniform4fv(U('dbb'), d ? d.bb : [0, 0, 1, 1]); gl.uniform1f(U('hs'), d ? C.hs : 0); gl.uniform1f(U('hmax'), d ? d.hmax : 0);
+  gl.uniform2f(U('dtx'), d ? (d.bb[2] - d.bb[0]) / d.w : 1, d ? (d.bb[3] - d.bb[1]) / d.h : 1);
+  // the sun of the shadows (SUN: they fall to the screen's lower right), 40 deg high, turned with the heading
+  const sx = -SUN[0], sy = SUN[1], h = Math.hypot(sx, sy), e = 40 * D2R;   // screen right/up of the light
+  const v = [C.R[0] * sx / h + Math.sin(C.head) * sy / h, C.R[1] * sx / h + Math.cos(C.head) * sy / h, 0];
+  gl.uniform3fv(U('sunL'), [v[0] * Math.cos(e), v[1] * Math.cos(e), Math.sin(e)]);
+}
 function drawGlobe(t) {
   landMask();
   const use = pickPatches();
@@ -345,6 +538,7 @@ function drawGlobe(t) {
   gl.uniform2f(U('res'), W, H); gl.uniform2f(U('ctr'), C.cx, C.cy); gl.uniform1f(U('R'), C.k);
   gl.uniform1f(U('l0'), C.l0); gl.uniform1f(U('ph0'), C.p0); gl.uniform1f(U('t'), t); gl.uniform1f(U('roll'), 0);
   const sty = styleAt(t); gl.uniform3fv(U('stA'), sty.A); gl.uniform3fv(U('stB'), sty.B); gl.uniform1f(U('stP'), sty.p); gl.uniform1f(U('stRtl'), RTL ? 1 : 0);
+  droneUniforms();
   gl.uniform1f(U('look'), LOOK === 'atlas' ? 1 : 0); gl.uniform1f(U('ocean'), CFG.ocean ?? (LOOK === 'atlas' ? .9 : .8)); gl.uniform1f(U('dimv'), dimAt(t)); gl.uniform1f(U('sat'), CFG.sat ?? (LOOK === 'atlas' ? .86 : 1.12));
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
@@ -440,11 +634,10 @@ function leader(ax, ay, px, py, ph, c, a, t) {
 // country rings -> one Path2D in screen space for this frame (points closer than 1.2 px are skipped)
 function countryPath(cs, step = 1.2) {
   const p = new Path2D(); let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, len = 0;
-  const vis = [C.l0 / D2R, C.p0 / D2R], hx = Math.min(W / C.k, 3.2) / D2R / Math.max(.15, C.cp), hy = Math.min(H / C.k * 1.2, 3.2) / D2R;
   for (const c of cs) for (const r of c.r) {
     let rx0 = 1e9, rx1 = -1e9, ry0 = 1e9, ry1 = -1e9;
     for (let i = 0; i < r.length; i += 2) { const a = r[i] / 1e4, b = r[i + 1] / 1e4; if (a < rx0) rx0 = a; if (a > rx1) rx1 = a; if (b < ry0) ry0 = b; if (b > ry1) ry1 = b; }
-    if (C.span < 60 && (rx1 < vis[0] - hx || rx0 > vis[0] + hx || ry1 < vis[1] - hy || ry0 > vis[1] + hy)) continue;
+    if (!nearView(rx0, ry0, rx1, ry1)) continue;
     let lx = null, ly = null, fx, fy;
     for (let i = 0; i < r.length; i += 2) {
       const [x, y] = P(r[i] / 1e4, r[i + 1] / 1e4);
@@ -1356,8 +1549,8 @@ export function sprite(name, pos, o = {}) {
     draw(t) {
       const [a, b] = life(this, t); if (a <= 0 || b <= 0 || !e.img) return;
       if (!top) return this.side(t, a, b);
-      const u = G ? this.uAt(t) : 0, d = G ? u * G.L : 0, gp = this.geoPos(t), [x, y, front] = P(gp[0], gp[1]); if (!front) return;
-      const img = e.img, L = this.lenAt(), wI = L * img.width / img.height; this.Lnow = L;
+      const u = G ? this.uAt(t) : 0, d = G ? u * G.L : 0, gp = this.geoPos(t), [x, y, front, ps] = P(gp[0], gp[1], medium === 'sea' ? 0 : undefined); if (!front) return;
+      const img = e.img, L = this.lenAt() * (C.tilt ? clamp(ps, .35, 2.2) : 1), wI = L * img.width / img.height; this.Lnow = L;
       let ang = ((o.heading ?? 0) - 90) * D2R;
       if (G) { const dk = Math.max(.01, L * .55 / pxPerKm()), A = P(...geoAt(G, d - dk)), B = P(...geoAt(G, d + dk)); ang = Math.atan2(B[1] - A[1], B[0] - A[0]); }   // the chord over about one ship length: a turn is eased
       const al = clamp(a * 2.2) * b * (G && !tr ? clamp(Math.min(u, 1 - u) * 14) : 1); if (al <= 0) return;   // a looping ship fades at the two ends of its route
@@ -1665,7 +1858,7 @@ function frame(t) {
 export function start() {
   window.seek = t => { frame(t); return true; };
   window.END = END; const cs = [...new Set([0, ...CUTS])].sort((a, b) => a - b); window.SHOTLIST = cs.map((c, i) => [c, cs[i + 1] ?? END]);
-  window.CAMS_AT = fps => { const o = []; for (let f = 0; f <= Math.round(END * fps); f++) { const c = camFinal(f / fps); o.push([f / fps, c.lon, c.lat, kOf(c.span), c.cy]); } return o; };
+  window.CAMS_AT = fps => { const o = []; for (let f = 0; f <= Math.round(END * fps); f++) { const c = camFinal(f / fps); o.push([f / fps, c.lon, c.lat, kOf(c.span), c.cy, +(c.pitch || 0).toFixed(3), +(c.head || 0).toFixed(3), +(c.dr || 0).toFixed(4)]); } return o; };
   const moves = CAMS.slice(1).map((b, i) => { const a = CAMS[i], d = Math.hypot((b.lon - a.lon) * Math.cos(b.lat * D2R), b.lat - a.lat) / Math.min(a.span, b.span);
     return { kind: 'cam', t: a.t, t1: b.t, dur: b.t - a.t, mag: +(Math.abs(Math.log(b.span / a.span)) + d).toFixed(2), dir: b.span < a.span ? 'in' : 'out', dive: !!b.dive }; });
   window.EVENTS = ITEMS.map(i => ({ kind: i.kind, t: i.t0, t1: i.t1, sfx: i.sfx, name: i.name, mag: i.mag, ticks: i.ticks, settle: i.settle, stops: i.stops }))
@@ -1674,7 +1867,7 @@ export function start() {
   const LY = ITEMS.filter(i => i.layer); for (const p of LY) for (const q of LY) if (p !== q && p.t0 < q.t0 && (p.t1 == null || p.t1 > q.t0 + .05)) console.log(`layers: ${p.kind} ${p.t0.toFixed(2)} still on at ${q.kind} ${q.t0.toFixed(2)}`);
   // v6: the logic checklist. It needs the images (sizes come from their proportions), so it runs once they are loaded.
   for (const i of ITEMS) if (i.aim) i.aim();
-  Promise.all(PRE).then(() => { const LG = logic(); window.LOGIC = LG; if (LG.fail.length) window.ERR = 'LOGIC CHECK FAILED (' + LG.fail.length + '): the render is stopped\n  ' + LG.fail.join('\n  '); else window.READY = true; });
+  Promise.all([...PRE, ...PRE_DEM]).then(() => { const LG = logic(); window.LOGIC = LG; if (LG.fail.length) window.ERR = 'LOGIC CHECK FAILED (' + LG.fail.length + '): the render is stopped\n  ' + LG.fail.join('\n  '); else window.READY = true; });
 }
 // item 9: test engine/data/places.json with the same rules as logic() (places: item 5, lanes: item 2 after smooth() as path() draws them)
 function checkPlaces() {

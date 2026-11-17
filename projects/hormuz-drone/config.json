@@ -1,0 +1,12 @@
+{
+ "name": "hormuz-auto",
+ "lang": "ar",
+ "engine": "file",
+ "rate": "+4%",
+ "maxGap": 0.16,
+ "lead": 0.15,
+ "fps": 120,
+ "lufs": -14,
+ "true_peak": -1.5,
+ "pauses": "punct"
+}
