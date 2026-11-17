@@ -23,6 +23,16 @@ const MAP = fs.readFileSync(path.join(ENG, 'engine', 'map.js'), 'utf8');
 const grab = n => { const m = MAP.match(new RegExp(`const ${n} = (\\{[\\s\\S]*?\\});`)); if (!m) throw new Error('map.js: ' + n + ' not found'); return Function('return ' + m[1])(); };
 const NUMW = grab('NUMW'), ALIAS = grab('ALIAS'), ISO2 = grab('ISO2'), CRAFT = grab('CRAFT');
 const TOPS = new Set(fs.readdirSync(path.join(ENG, 'assets', 'sprites', 'top')).map(f => f.replace(/\.png$/, '')));
+// TaleSpark 2.2: objects named in the words (engine/data/objects.json) and the still sprites we have (3/4 view, any set but top/)
+const OBJS = J(path.join(ENG, 'data', 'objects.json')).objects;
+const STILLS = new Set(fs.readdirSync(path.join(ENG, 'assets', 'sprites'), { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== 'top')
+  .flatMap(d => fs.readdirSync(path.join(ENG, 'assets', 'sprites', d.name)).filter(f => f.endsWith('.png')).map(f => f.replace(/\.png$/, ''))));
+const objectsAt = (a, b) => { const out = [];   // [{o, i}] first word of each object named between word a and b
+  for (const o of OBJS) for (const kw of o.ar) { const k = kw.split(/\s+/).map(nw); let hit = -1;
+    for (let i = a; i <= b && hit < 0; i++) if (k.every((t, j) => i + j <= b && (j === 0 ? forms(WORDS[i][0]).has(t) : forms(WORDS[i + j][0]).has(t)))) hit = i;
+    if (hit >= 0) { out.push({ o, i: hit }); break; } }
+  return out; };
+const shownObj = new Set();
 
 // ---- words (the engine's normaliser), anchors T('word#n'), lines of the script -> word ranges
 const nw = w => String(w).toLowerCase().replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[^\p{L}\p{N}]/gu, '');
@@ -200,6 +210,17 @@ LINES.forEach(([a, b], li) => {
       item(`sprite('${c}', null, { at: ${A(a)}, early: 0, along: ${JSON.stringify(R)}, travel: ${r2((L1 - L0) * .9)}, until: ${UNTIL} });   // an approach through open water, at the berth before the line ends`, `craft ${c}`, L0);
       if (c === 'carrier' && TOPS.has('destroyer')) item(`sprite('destroyer', null, { at: ${A(a, false, .6)}, early: 0, along: ${JSON.stringify(R)}, travel: ${r2((L1 - L0) * .9)}, sfx: false, until: ${UNTIL} });   // its escort, behind it`, 'craft destroyer', L0); }
     else report.notes.push(`السطر ${li + 1}: المجسم ${c} يحتاج مساراً معروفاً (بحرياً للسفن) أو مكاناً؛ لم يُرسم.`);
+  }
+  // ---- objects the words name (2.2): a still one stands on the line's place, a moving one runs along the place's lane
+  for (const { o, i } of objectsAt(a, b)) {
+    if (shownObj.has(o.name) || p.craft === o.name || !main || main.new) continue;
+    const ln = route && route.kind === 'lane' ? route.call : (k => k ? `lane('${k}')` : null)(Object.keys(PL.lanes).find(l => l.startsWith(main.k + '_')));
+    if (o.kind === 'still' && (main.p.in === 'sea') !== (o.name === 'oil_rig')) continue;   // logic: barrels never float in a strait, an oil rig stands only at sea
+    if (o.name === 'pipeline' && route) continue;   // the pipeline itself is already drawn
+    if (o.kind === 'still' && STILLS.has(o.name)) { use('sprite', 'spot'); shownObj.add(o.name);
+      item(`sprite('${o.name}', spot('${main.k}'), { at: ${A(i)}, until: ${UNTIL}${main.p.off_map ? '' : `, in: '${main.p.in}'`} });   // «${clean(WORDS[i][0])}»`, `object ${o.name}`, ts(i)); }
+    else if (o.kind === 'move' && TOPS.has(o.name) && ln && (CRAFT[o.name] || {}).m === 'sea') { use('sprite', 'lane'); shownObj.add(o.name);
+      item(`sprite('${o.name}', null, { at: ${A(i)}, early: 0, along: ${ln}, travel: ${r2(Math.max(4, L1 - L0 + 1.2) * 1.6)}, until: ${UNTIL} });   // «${clean(WORDS[i][0])}»`, `craft ${o.name}`, ts(i)); }
   }
   // ---- numbers: one at a time at the top, each until the next one
   const ends = k => [[k, PL.places[k].pt], ...Object.entries(PL.places).filter(([q, v]) => q.startsWith(k + '_') && v.kind === 'point').map(([q, v]) => [q, v.pt])];

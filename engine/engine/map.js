@@ -1205,11 +1205,15 @@ const CRAFT = {
   destroyer: { m: 'sea', len: 155, v: 55 }, submarine: { m: 'sea', len: 110, v: 40 }, dhow: { m: 'sea', len: 25, v: 12 }, patrol_boat: { m: 'sea', len: 20, v: 75 },
   fighter_jet: { m: 'air', len: 17, v: 1500 }, helicopter: { m: 'air', len: 15, v: 250 }, missile: { m: 'air', len: 6, v: 900 }, drone: { m: 'air', len: 3.5, v: 185 },
   missile_launcher: { m: 'land', len: 12, v: 60 }, tank: { m: 'land', len: 10, v: 50 },
+  // TaleSpark 2.2 (engine/data/objects.json): the rest of the moving library, real length (m) and speed (km/h)
+  fishing_boat: { m: 'sea', len: 25, v: 18 }, ferry: { m: 'sea', len: 180, v: 40 }, cruise_ship: { m: 'sea', len: 330, v: 40 }, icebreaker: { m: 'sea', len: 150, v: 28 },
+  airliner: { m: 'air', len: 70, v: 850 }, cargo_plane: { m: 'air', len: 50, v: 600 }, bomber: { m: 'air', len: 50, v: 900 },
+  truck: { m: 'land', len: 18, v: 80 }, train: { m: 'land', len: 600, v: 120 },
 };
 // length on screen relative to the biggest ship. A true scale would make everything one pixel, so it is symbolic, but it
 // keeps the real order (compressed): container ship 1, tanker .96, destroyer .73, dhow .38; aircraft and missiles below the ships.
-const AIRREL = { fighter_jet: .5, helicopter: .46, missile: .4, drone: .36 };
-const REL = n => { const k = CRAFT[n]; return !k ? 1 : k.m === 'air' ? AIRREL[n] : k.m === 'land' ? .34 : Math.pow(k.len / 366, .36); };
+const AIRREL = { fighter_jet: .5, helicopter: .46, missile: .4, drone: .36, airliner: .62, cargo_plane: .58, bomber: .56 };
+const REL = n => { const k = CRAFT[n]; return !k ? 1 : k.m === 'air' ? AIRREL[n] : k.m === 'land' ? (n === 'train' ? .7 : .34) : Math.pow(k.len / 366, .36); };
 // the size follows the camera: bigger (symbolic) far away, never a giant next to a narrow strait. Length in px of a REL 1 ship.
 const sizeCurve = span => clamp(170 * Math.pow(span, -.22), 84, 170);
 const SUN = [.55, .83];                                   // one sun: every cast shadow falls this way on the screen

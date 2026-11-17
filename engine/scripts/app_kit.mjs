@@ -4,7 +4,7 @@
 // rules, place / lane keys, country codes, number words and sprite list as script_check.mjs. Run it after any change to
 // engine/prompts, engine/data/script_rules.json, places.json or the sprites, then rebuild the app (build_app does it).
 import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
-import { prompt, CRAFT_AR } from './script_check.mjs';
+import { prompt, CRAFT_AR, OBJ, haveObj } from './script_check.mjs';
 const ENG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const J = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const PL = J(path.join(ENG, 'data', 'places.json')), RULES = J(path.join(ENG, 'data', 'script_rules.json')), WORLD = J(path.join(ENG, 'data', 'world.json'));
@@ -19,6 +19,7 @@ const kit = {
   fix: fs.readFileSync(path.join(ENG, 'prompts', 'gemini_fix.txt'), 'utf8'),
   sheet: fs.readFileSync(path.join(ENG, 'prompts', 'chatgpt_sheet.txt'), 'utf8'),
   rules: RULES, places: Object.keys(PL.places), lanes: [...Object.keys(PL.lanes), ...Object.keys(PL.pipelines || {})],
+  objects: OBJ.map(o => ({ name: o.name, kind: o.kind, ar: o.ar, desc: o.desc, have: haveObj(o) })),   // 2.2: words -> sprites, and which exist
   a3: WORLD.countries.map(c => c.a3), numw: Object.keys(NUMW).filter(k => /[؀-ۿ]/.test(k)), top: TOP, craft_ar: CRAFT_AR,
 };
 const out = process.argv[2] || path.join(ENG, '..', 'android', 'app', 'src', 'main', 'assets', 'madar_kit.json');

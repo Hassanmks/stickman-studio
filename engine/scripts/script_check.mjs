@@ -18,6 +18,23 @@ const NUMW = grab('NUMW');
 export const CRAFT_AR = { tanker: 'ناقلة نفط', lng_carrier: 'ناقلة غاز مسال', container_ship: 'سفينة حاويات', destroyer: 'مدمّرة', carrier: 'حاملة طائرات',
   dhow: 'مركب شراعي تقليدي', tanker_burning: 'ناقلة نفط مشتعلة', missile: 'صاروخ', drone: 'طائرة مسيّرة', fighter_jet: 'طائرة مقاتلة' };
 const TOP = fs.readdirSync(path.join(ENG, 'assets', 'sprites', 'top')).filter(f => f.endsWith('.png')).map(f => f.slice(0, -4));
+// TaleSpark 2.2: the objects a script names (engine/data/objects.json) and whether their sprite exists yet
+export const OBJ = J(path.join(ENG, 'data', 'objects.json')).objects;
+const STILL = new Set(fs.readdirSync(path.join(ENG, 'assets', 'sprites'), { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== 'top')
+  .flatMap(d => fs.readdirSync(path.join(ENG, 'assets', 'sprites', d.name)).filter(f => f.endsWith('.png')).map(f => f.slice(0, -4))));
+export const haveObj = o => o.kind === 'move' ? TOP.includes(o.name) : STILL.has(o.name);
+/** [{name, kind, word, line, i, have}] for every object named in the script lines (first mention of each) */
+export function objectsIn(lines) {
+  const found = [], seen = new Set();
+  lines.forEach((l, li) => {
+    const ws = l.split(/\s+/).filter(Boolean), st = ws.map(w => stems(w));
+    for (const o of OBJ) { if (seen.has(o.name)) continue;
+      for (const kw of o.ar) { const k = kw.split(/\s+/).map(bare);
+        const at = st.findIndex((_, i) => k.every((t, j) => i + j < st.length && st[i + j].has(t)));
+        if (at >= 0) { seen.add(o.name); found.push({ name: o.name, kind: o.kind, word: ws[at].replace(/[^\p{L}\p{M}]/gu, ''), line: li + 1, i: at, have: haveObj(o), desc: o.desc }); break; } } }
+  });
+  return found;
+}
 const A3 = new Set(WORLD.countries.map(c => c.a3));
 
 const HARAKA = /[ً-ْٰ]/g, HAS_H = /[ً-ْٰ]/;
@@ -115,17 +132,20 @@ export function check(R, o = {}) {
   return finish(P, R, nW, est);
 }
 function finish(P, R, nW, est) {
-  const need = [...new Set(R.plan.map(p => p.craft).filter(c => c && !TOP.includes(c)))];
-  return { ok: !P.some(p => p.level === 'error'), words: nW, seconds: Math.round(est), lines: R.script.length, sheets_needed: need, problems: P };
+  const objs = objectsIn(R.script), miss = objs.filter(o => !o.have);
+  const need = [...new Set([...miss.map(o => o.name), ...R.plan.map(p => p.craft).filter(c => c && !TOP.includes(c))])];
+  if (miss.length) P.push({ level: 'warn', line: miss[0].line, text: `مجسمات غير موجودة بعد: ${miss.map(o => '«' + o.word + '»').join('، ')}. لوحة ChatGPT واحدة تضيفها إلى المكتبة (مرة واحدة فقط).` });
+  return { ok: !P.some(p => p.level === 'error'), words: nW, seconds: Math.round(est), lines: R.script.length, sheets_needed: need, objects: objs, problems: P };
 }
 export function fixPrompt(rep) {
   const lst = rep.problems.map(p => `- ${p.text}`).join('\n');
   return fs.readFileSync(path.join(ENG, 'prompts', 'gemini_fix.txt'), 'utf8').replace('{{PROBLEMS}}', lst);
 }
-export function sheetPrompt(objs) {
+export function sheetPrompt(objs) {   // objs: names from objects.json (each says its own camera), or free descriptions
   const n = objs.length, cols = n <= 2 ? n : n <= 4 ? 2 : 3, rows = Math.ceil(n / cols);
+  const line = (x, i) => { const o = OBJ.find(q => q.name === x); return `${i + 1}. ${o ? (o.kind === 'move' ? 'TOP VIEW. ' : 'AERIAL VIEW. ') + o.desc : x}`; };
   return fs.readFileSync(path.join(ENG, 'prompts', 'chatgpt_sheet.txt'), 'utf8').replace('{{N}}', n).replace('{{COLS}}', cols).replace('{{ROWS}}', rows)
-    .replace('{{OBJECTS}}', objs.map((o, i) => `${i + 1}. ${o}`).join('\n'));
+    .replace('{{OBJECTS}}', objs.map(line).join('\n'));
 }
 const say = rep => { console.log(`${rep.ok ? 'سليم' : 'يحتاج إصلاحاً'}: ${rep.lines} سطراً، ${rep.words} كلمة، نحو ${rep.seconds} ثانية.`); for (const p of rep.problems) console.log(`  ${p.level === 'error' ? 'خطأ ' : 'تنبيه'} ${p.text}`); if (rep.sheets_needed.length) console.log(`  لوحات مطلوبة: ${rep.sheets_needed.join('، ')}`); };
 

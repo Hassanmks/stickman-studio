@@ -219,8 +219,10 @@ class H(BaseHTTPRequestHandler):
                 r = subprocess.run([PY, str(S / 'slice_sheet.py'), str(f), str(cut), '--n', str(len(names))], capture_output=True, text=True, encoding='utf-8', errors='replace')
                 got = sorted(cut.glob('img*.png'))
                 if r.returncode or len(got) != len(names): return self.send(400, {'error': f'لم أجد {len(names)} مجسمات منفصلة في اللوحة ({len(got)})'})
-                top = ENG / 'assets' / 'sprites' / 'top'
-                for n, g in zip(names, got): shutil.copy2(g, top / f'{n}.png')
+                # objects.json says which are moving (drawn from above -> sprites/top/) and which stand still (3/4 view -> sprites/objects/)
+                kinds = {o['name']: o['kind'] for o in json.loads((ENG / 'data' / 'objects.json').read_text(encoding='utf-8'))['objects']}
+                for n, g in zip(names, got):
+                    d = ENG / 'assets' / 'sprites' / ('top' if kinds.get(n, 'move') == 'move' else 'objects'); d.mkdir(exist_ok=True); shutil.copy2(g, d / f'{n}.png')
                 subprocess.run([PY, str(S / 'asset_index.py')], capture_output=True)
                 return self.send(200, {'sprites': names, 'check': str(cut / '_sheet_check.png')})
         self.send(404, {'error': 'not found'})

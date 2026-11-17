@@ -224,8 +224,8 @@ private fun StudioTab(m: Madar, openSettings: () -> Unit) {
         // 5. a sheet, only for a new moving object
         if (report != null && report.sheets.isNotEmpty()) Card(accent = Warn) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("لوحة مجسمات جديدة", fx = "palette")
-            Text("الخطة تحتاج مجسماً متحركاً غير موجود: ${report.sheets.joinToString("، ")}. يُكتب أمر اللوحة (منظر علوي) فتصنعها في ChatGPT وتستوردها.", style = MaterialTheme.typography.bodyMedium)
-            GoldButton("افتح ChatGPT والأمر ملصوق", fx = "picture") { sendTo(ctx, listOf(CHATGPT), kit.sheetPrompt(report.sheets.map { "A ${it.replace('_', ' ')} seen from directly above." }), "https://chatgpt.com/") }
+            Text("السكربت يذكر ${report.sheets.size} مجسماً لا نملكه بعد. أمر ChatGPT جاهز (لوحة واحدة لها كلها): ولّدها، ثم شاركها إلى TaleSpark أو استوردها من هنا. تُحفظ في المكتبة فلا تُصنع مرة ثانية.", style = MaterialTheme.typography.bodyMedium)
+            GoldButton("افتح ChatGPT والأمر ملصوق", fx = "picture") { sendTo(ctx, listOf(CHATGPT), kit.sheetPrompt(report.sheets), "https://chatgpt.com/") }
             GhostButton(if (sheet.isBlank()) "استورد اللوحة" else "اللوحة مستوردة (تغيير)", Modifier.fillMaxWidth(), fx = "folder") { pickSheet.launch(arrayOf("image/*")) }
         } }
         // 6. production

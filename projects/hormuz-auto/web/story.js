@@ -1,4 +1,4 @@
-// Written by engine/scripts/director.mjs (TaleSpark 2.0 automatic director, 2026-11-17T16:52)
+// Written by engine/scripts/director.mjs (TaleSpark 2.0 automatic director, 2026-11-17T18:28)
 // from script.txt + web/timing.json + shotplan.json (Gemini). Every item has an id (// dN); the logic gate's rejects go to director.drop.json.
 import { T, cam, captions, end, flagPin, icon, label, lane, mapStyle, measure, number, path, pipeline, punch, region, shake, spot, sprite, start, title } from './map.js';
 

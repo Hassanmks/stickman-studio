@@ -21,6 +21,17 @@ class Kit(ctx: Context) {
     private val ambErr = set(rules.getJSONArray("ambiguous_error"))
     private val amb = rules.getJSONObject("ambiguous").let { o -> o.keys().asSequence().associateWith { o.getString(it) } }
     private val forbidden = rules.getJSONArray("forbidden").let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+    data class Obj(val name: String, val kind: String, val ar: List<List<String>>, val desc: String, val have: Boolean)
+    private val objs = k.getJSONArray("objects").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map { o ->
+        Obj(o.getString("name"), o.getString("kind"), o.getJSONArray("ar").let { w -> (0 until w.length()).map { w.getString(it).split(Regex("\\s+")).map(::bare) } }, o.getString("desc"), o.getBoolean("have")) } }
+    /** 2.2: the objects a script names, first mention of each: (object, the word as written) */
+    fun objectsIn(lines: List<String>): List<Pair<Obj, String>> {
+        val out = mutableListOf<Pair<Obj, String>>()
+        val ws = lines.flatMap { it.split(Regex("\\s+")).filter(String::isNotBlank) }; val st = ws.map(::stems)
+        for (o in objs) for (kw in o.ar) { val at = st.indices.firstOrNull { i -> kw.indices.all { j -> i + j < st.size && kw[j] in st[i + j] } }
+            if (at != null) { out.add(o to ws[at].filter { it.isLetter() }); break } }
+        return out
+    }
     val sections: List<String> = rules.getJSONArray("sections").let { a -> (0 until a.length()).map { a.getString(it) } }
 
     fun prompt(topic: String, seconds: Int, angle: String = ""): String = k.getString("prompt")
@@ -30,10 +41,12 @@ class Kit(ctx: Context) {
 
     fun fixPrompt(r: Report): String = k.getString("fix").replace("{{PROBLEMS}}", r.problems.joinToString("\n") { "- " + it.text })
 
-    fun sheetPrompt(objects: List<String>): String {
-        val n = objects.size; val cols = if (n <= 2) n else if (n <= 4) 2 else 3; val rows = (n + cols - 1) / cols
+    /** one ChatGPT sheet for the missing objects; each says its own camera (moving = straight from above, still = 3/4 aerial) */
+    fun sheetPrompt(names: List<String>): String {
+        val n = names.size; val cols = if (n <= 2) n else if (n <= 4) 2 else 3; val rows = (n + cols - 1) / cols
         return k.getString("sheet").replace("{{N}}", "$n").replace("{{COLS}}", "$cols").replace("{{ROWS}}", "$rows")
-            .replace("{{OBJECTS}}", objects.mapIndexed { i, o -> "${i + 1}. $o" }.joinToString("\n"))
+            .replace("{{OBJECTS}}", names.mapIndexed { i, x -> val o = objs.firstOrNull { it.name == x }
+                "${i + 1}. " + (if (o == null) x else (if (o.kind == "move") "TOP VIEW. " else "AERIAL VIEW. ") + o.desc) }.joinToString("\n"))
     }
 
     // ------------------------------------------------------------------ the reply
@@ -122,7 +135,9 @@ class Kit(ctx: Context) {
             }
         }
         if (r.sources.isEmpty() && sections[1] in r.found) add(false, 0, "قسم المصادر فارغ: كل رقم يحتاج مصدراً.")
-        val sheets = r.plan.mapNotNull { it.craft }.filter { it !in top }.distinct()
+        val found = objectsIn(sc); val miss = found.filter { !it.first.have }
+        if (miss.isNotEmpty()) add(false, 0, "مجسمات غير موجودة بعد: ${miss.joinToString("، ") { "«" + it.second + "»" }}. لوحة ChatGPT واحدة تضيفها إلى المكتبة (مرة واحدة فقط).")
+        val sheets = (miss.map { it.first.name } + r.plan.mapNotNull { it.craft }.filter { it !in top }).distinct()
         return Report(P.none { it.error }, nW, est.toInt(), sc.size, sheets, P)
     }
 
