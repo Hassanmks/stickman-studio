@@ -133,6 +133,7 @@ fun MadarApp(store: Store, kit: Kit, shared: List<Uri>, onShared: () -> Unit) {
         }
         pc?.let { Text("${it.optString("name")} · ${it.optJSONObject("gpu")?.optString("name") ?: ""}${if (it.optBoolean("busy")) " · يعمل الآن" else ""}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         AnimatedVisibility(showSettings) { Settings(store) { showSettings = false } }
+        UpdateCard()
 
         // ---- 1. the topic
         Step(1, "الموضوع") {
@@ -268,3 +269,25 @@ private fun IconText(text: String, color: Color, onClick: () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FlowRowCompat(content: @Composable () -> Unit) = FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { content() }
+
+/** a newer TaleSpark on GitHub: one tap downloads it and opens the installer (it installs over this version) */
+@Composable
+private fun UpdateCard() {
+    val ctx = LocalContext.current; val scope = rememberCoroutineScope()
+    var rel by remember { mutableStateOf<Updater.Release?>(null) }; var dl by remember { mutableFloatStateOf(-1f) }
+    LaunchedEffect(Unit) { rel = withContext(Dispatchers.IO) { runCatching { Updater.check(ma.stickman.studio.BuildConfig.VERSION_NAME) }.getOrNull() } }
+    val r = rel ?: return
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Water.copy(alpha = .15f)).border(1.dp, Water, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("تحديث جديد: ${r.version}", fontWeight = FontWeight.Bold, color = Water)
+        if (r.notes.isNotBlank()) Text(r.notes.lines().filter { it.startsWith("-") }.take(5).joinToString("\n"), fontSize = 13.sp)
+        Button({ scope.launch {
+            dl = 0f; val f = withContext(Dispatchers.IO) { runCatching { Updater.download(r, File(ctx.cacheDir, "update/TaleSpark-${r.version}.apk")) { dl = it } }.getOrNull() }; dl = -1f
+            if (f == null) { toast(ctx, "تعذّر تنزيل التحديث"); return@launch }
+            if (Build.VERSION.SDK_INT >= 26 && !ctx.packageManager.canRequestPackageInstalls()) {
+                toast(ctx, "اسمح لـ TaleSpark بتثبيت التطبيقات، ثم اضغط «حدّث» مرة أخرى")
+                ctx.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + ctx.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return@launch }
+            val u = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)
+            ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(u, "application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+        } }, Modifier.fillMaxWidth(), enabled = dl < 0) { Text(if (dl >= 0) "أنزّل… ${(dl * 100).toInt()}%" else "حدّث الآن") }
+    }
+}

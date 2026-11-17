@@ -85,3 +85,26 @@ class Host(private val s: Store) {
         tmp.renameTo(to); return to
     }
 }
+
+/** In-app update: the newest release of Hassanmks/talespark on GitHub (public, no token), its APK installed over this one. */
+object Updater {
+    private const val API = "https://api.github.com/repos/Hassanmks/talespark/releases/latest"
+    data class Release(val version: String, val notes: String, val apk: String, val size: Long)
+    private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(300, TimeUnit.SECONDS).build()
+    private fun parts(v: String) = v.trimStart('v').split('.', '-').mapNotNull { it.toIntOrNull() }
+    fun newer(a: String, b: String): Boolean { val x = parts(a); val y = parts(b); for (i in 0 until maxOf(x.size, y.size)) { val d = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }; if (d != 0) return d > 0 }; return false }
+    /** the latest release when it is newer than [current], else null */
+    fun check(current: String): Release? {
+        val res = http.newCall(Request.Builder().url(API).header("Accept", "application/vnd.github+json").build()).execute()
+        if (!res.isSuccessful) return null
+        val o = JSONObject(res.body!!.string()); val tag = o.optString("tag_name"); val assets = o.optJSONArray("assets") ?: return null
+        val a = (0 until assets.length()).map { assets.getJSONObject(it) }.firstOrNull { it.optString("name").endsWith(".apk") } ?: return null
+        return if (newer(tag, current)) Release(tag.trimStart('v'), o.optString("body"), a.getString("browser_download_url"), a.optLong("size")) else null
+    }
+    fun download(r: Release, to: File, progress: (Float) -> Unit): File {
+        val res = http.newCall(Request.Builder().url(r.apk).build()).execute(); if (!res.isSuccessful) throw Host.HostError("تعذّر تنزيل التحديث (${res.code})")
+        val total = res.body!!.contentLength().takeIf { it > 0 } ?: r.size; var got = 0L; to.parentFile?.mkdirs()
+        res.body!!.byteStream().use { i -> to.outputStream().use { o -> val b = ByteArray(1 shl 16); while (true) { val n = i.read(b); if (n < 0) break; o.write(b, 0, n); got += n; progress(got.toFloat() / total) } } }
+        return to
+    }
+}
