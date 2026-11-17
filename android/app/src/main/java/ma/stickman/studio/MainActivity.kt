@@ -32,7 +32,20 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         store = Store(this); val kit = Kit(this)
         handle(intent)
-        setContent { StudioTheme("dark", false) { MadarApp(store, kit, shared) { shared = emptyList() } } }
+        ma.stickman.studio.ui.Sfx.init(this)
+        setContent {
+            // the look of TaleSpark 1.x: its theme, sounds and haptics (ui/Fx.kt, ui/Components.kt)
+            StudioTheme(store.theme, false) {
+                androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars =
+                    store.theme == "light" || (store.theme == "system" && !androidx.compose.foundation.isSystemInDarkTheme())
+                val view = androidx.compose.ui.platform.LocalView.current
+                val fb = androidx.compose.runtime.remember(store.haptics, store.sounds) { ma.stickman.studio.ui.Feedback(view, store.haptics, store.sounds) }
+                androidx.compose.runtime.CompositionLocalProvider(ma.stickman.studio.ui.LocalFeedback provides fb,
+                    androidx.compose.material3.LocalContentColor provides androidx.compose.material3.MaterialTheme.colorScheme.onBackground) {
+                    MadarApp(store, kit, shared) { shared = emptyList() }
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handle(intent) }

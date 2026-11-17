@@ -2,6 +2,9 @@ package ma.stickman.studio.madar
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,7 +22,15 @@ class Store(ctx: Context) {
     var hosts: String get() = p.getString("hosts", "") ?: ""; set(v) = p.edit().putString("hosts", v).apply()
     var port: Int get() = p.getInt("port", 8765); set(v) = p.edit().putInt("port", v).apply()
     var token: String get() = p.getString("token", "") ?: ""; set(v) = p.edit().putString("token", v).apply()
-    var mode: String get() = p.getString("mode", "auto") ?: "auto"; set(v) = p.edit().putString("mode", v).apply()
+    // observed by the screens: a change shows at once
+    private var _mode by mutableStateOf(p.getString("mode", "auto") ?: "auto")
+    var mode: String get() = _mode; set(v) { _mode = v; p.edit().putString("mode", v).apply() }
+    private var _theme by mutableStateOf(p.getString("theme", "dark") ?: "dark")
+    var theme: String get() = _theme; set(v) { _theme = v; p.edit().putString("theme", v).apply() }
+    private var _haptics by mutableStateOf(p.getBoolean("haptics", true))
+    var haptics: Boolean get() = _haptics; set(v) { _haptics = v; p.edit().putBoolean("haptics", v).apply() }
+    private var _sounds by mutableStateOf(p.getBoolean("sounds", true))
+    var sounds: Boolean get() = _sounds; set(v) { _sounds = v; p.edit().putBoolean("sounds", v).apply() }
     var seconds: Int get() = p.getInt("seconds", 90); set(v) = p.edit().putInt("seconds", v).apply()
     var topic: String get() = p.getString("topic", "") ?: ""; set(v) = p.edit().putString("topic", v).apply()
     var angle: String get() = p.getString("angle", "") ?: ""; set(v) = p.edit().putString("angle", v).apply()
@@ -76,6 +87,7 @@ class Host(private val s: Store) {
     fun run(id: String, force: Boolean, mode: String) = call(Request.Builder().url(url("/jobs/$id/run")).post(JSONObject().put("force", force).put("mode", mode).toString().toRequestBody(json)))
     fun approve(id: String) = call(Request.Builder().url(url("/jobs/$id/approve")).post("{}".toRequestBody(json)))
     fun job(id: String) = call(Request.Builder().url(url("/jobs/$id")))
+    fun jobs(): List<JSONObject> = call(Request.Builder().url(url("/jobs"))).optJSONArray("jobs")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList()
     fun download(path: String, to: File, progress: (Float) -> Unit = {}): File {
         val res = http.newCall(Request.Builder().url(url(path)).header("X-Token", s.token).build()).execute()
         if (!res.isSuccessful) throw HostError("تعذّر التنزيل (${res.code})")
