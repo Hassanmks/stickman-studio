@@ -54,7 +54,7 @@ const countryAt = i => { for (const { c, seqs } of CTR) for (const q of seqs) if
 const PLK = []; for (const [k, p] of Object.entries(PL.places)) for (const a of new Set([...(p.aka || []), p.ar])) PLK.push({ k, toks: a.split(/\s+/).map(nw) });
 PLK.sort((a, b) => b.toks.length - a.toks.length);
 const placeAt = i => { for (const P of PLK) if (P.toks.every((tk, j) => i + j < WORDS.length && (j === 0 ? forms(WORDS[i][0]).has(tk) : N[i + j] === tk))) return { ...P, len: P.toks.length }; return null; };
-const numv = w => { let s = nw(w); if (/^\d+$/.test(s)) return +s; if (NUMW[s] == null && s.length > 2 && 'وفبل'.includes(s[0])) s = s.slice(1); if (NUMW[s] == null && s.startsWith('ال')) s = s.slice(2); return NUMW[s]; };
+const numv = w => { let s = nw(w); if (/^\d+$/.test(s)) return +s; if (NUMW[s] == null && s.length > 2 && 'وفبل'.includes(s[0])) s = s.slice(1); if (NUMW[s] == null && s.startsWith('ال')) s = s.slice(2); if (NUMW[s] == null && s.length > 3 && s.endsWith('ا') && NUMW[s.slice(0, -1)] != null) s = s.slice(0, -1); return NUMW[s]; };
 const SCALE = { 1000: 'ألف', 1e6: 'مليون', 1e9: 'مليار' };
 const DANGER = ['اغلاق', 'اغلق', 'يغلق', 'تغلق', 'صاروخ', 'صواريخ', 'هجوم', 'حرب', 'تهديد', 'انفجار', 'ضربه', 'يقصف', 'مسيره', 'الحرب', 'الخطر', 'خطر', 'تهاجم', 'هاجم'];
 const CNAME = c => ({ ARE: 'الإمارات', OMN: 'سلطنة عُمان', USA: 'الولايات المتحدة', GBR: 'بريطانيا' }[c.a3] || c.ar);
@@ -98,17 +98,21 @@ LINES.forEach(([a, b], li) => {
     const v = numv(WORDS[i][0]);
     if (v != null) {
       let j = i, tot = 0, cur = 0; const vals = [];
-      while (j <= b && numv(WORDS[j][0]) != null && (j === i || N[j].startsWith('و') || [100, 1000, 1e6, 1e9].includes(numv(WORDS[j][0])))) { const x = numv(WORDS[j][0]); if (x >= 1000) { tot += (cur || 1) * x; cur = 0; } else if (x === 100) cur = (cur || 1) * 100; else cur += x; vals.push(x); j++; }
+      while (j <= b && numv(WORDS[j][0]) != null && (j === i || N[j].startsWith('و') || numv(WORDS[j][0]) >= 100 || (numv(WORDS[j][0]) === 10 && numv(WORDS[j - 1][0]) < 10)) && !(j > i && /[،,؛;:.!?؟…]$/.test(WORDS[j - 1][0]))) { const x = numv(WORDS[j][0]); if (x >= 1000) { tot += (cur || 1) * x; cur = 0; } else if (x === 100) cur = (cur || 1) * 100; else cur += x; vals.push(x); j++; }
       const val = tot + cur, last = vals[vals.length - 1], nxt = j <= b ? N[j] : '', nxt2 = j + 1 <= b ? N[j + 1] : '';
       const unitKm = nxt.startsWith('كيلو') || nxt === 'كم', pct = (nxt === 'في' && /^(ال)?(مئه|ميه|مائه)$/.test(nxt2)) || /^(بال|ال)?(مئه|ميه|مائه)$/.test(nxt);
       const planned = p.number && String(p.number).match(/[\d.]+/) && +String(p.number).match(/[\d.]+/)[0];
       if (vals.length === 1 && val <= 10 && !unitKm && !pct && planned !== val) { i = j - 1; continue; }   // a lone small word is not a figure
       let to = val, fmt = '#', k = j;
-      if (SCALE[last] && vals.length > 1) { to = val / last; fmt = `# ${SCALE[last]}`; }
+      // a big number reads in its biggest scale: «اثني عشر مليارا وستمئة وخمسين مليون» = 12.65 مليار (not 12,650 مليون, not 50 مليون)
+      const big = Math.max(0, ...vals.filter(x => x === 1e6 || x === 1e9)); let say = null, dec = 0;
+      if (big && val >= big && vals.length > 1) { to = +(val / big).toFixed(2); fmt = `# ${SCALE[big]}`; dec = Number.isInteger(to) ? 0 : String(to).split('.')[1].length;
+        if (dec) say = clean(WORDS[i + vals.lastIndexOf(big)][0]); }   // 12.65 is never spoken as such: tie it to its scale word
+      else if (SCALE[last] && vals.length > 1) { to = val / last; fmt = `# ${SCALE[last]}`; }
       if (unitKm) { fmt = '# كم'; k = j + 1; } else if (pct) { fmt = '#%'; k = nxt === 'في' ? j + 2 : j + 1; }
       const sub = []; for (let q = k; q <= b && sub.length < 5; q++) { sub.push(clean(WORDS[q][0])); if (/[،,؛;:.!?؟…]$/.test(WORDS[q][0])) break; }
       const dup = numbersSeen.some(x => x.to === to && x.fmt === fmt); numbersSeen.push({ to, fmt });
-      ents.push({ kind: 'number', i, to, fmt, sub: sub.join(' '), dup, end: k - 1 }); i = k - 1; continue;
+      ents.push({ kind: 'number', i, to, fmt, sub: sub.join(' '), dup, end: k - 1, dec, say }); i = k - 1; continue;
     }
     if (DANGER.some(d => forms(WORDS[i][0]).has(d))) ents.push({ kind: 'danger', i });
   }
@@ -230,7 +234,7 @@ LINES.forEach(([a, b], li) => {
       item(`measure(spot('${best.ka}'), spot('${best.kb}'), { at: ${A(e.i)}, dur: 1.0, to: ${e.to}, unit: 'كم', color: '#ffd23f', until: ${UNTIL} });`, `measure ${e.to}`, ts(e.i)); item(`punch(${A(e.end)}, { amt: .1 });`, 'punch'); } });
   nums.forEach((e, k) => { if (e.dup || e.measured) return; use('number', 'punch');
     const until = k + 1 < nums.length ? A(nums[k + 1].i, false, -.15) : UNTIL, fire = red || e.fmt === '#%' && e.to >= 50;
-    item(`number(null, '${e.fmt}', { at: ${A(e.i)}, until: ${until}, count: { to: ${e.to}, dur: ${e.to >= 100 ? 1.1 : .95} }, color: '${fire ? 'fire' : 'yellow'}'${e.sub ? `, sub: '${e.sub.replace(/'/g, '’')}'` : ''} });`, `number ${e.to}`, ts(e.i));
+    item(`number(null, '${e.fmt}', { at: ${A(e.i)}, until: ${until}, count: { to: ${e.to}, dur: ${e.to >= 100 ? 1.1 : .95}${e.dec ? `, fmt: n => n.toFixed(${e.dec})` : ''} }${e.say ? `, say: '${e.say}'` : ''}, color: '${fire ? 'fire' : 'yellow'}'${e.sub ? `, sub: '${e.sub.replace(/'/g, '’')}'` : ''} });`, `number ${e.to}`, ts(e.i));
     item(`punch(${A(e.end)}, { amt: .1 });`, 'punch'); emph.add(clean(WORDS[e.i][0])); });
   // ---- impact
   if (fx === 'ضربة' || fx === 'خطر' || ents.some(e => e.kind === 'danger')) { const d = ents.find(e => e.kind === 'danger') || nums[0] || places[0] || ctrs[0];
@@ -240,8 +244,11 @@ LINES.forEach(([a, b], li) => {
 
 // ---- payoff + closed loop: the last line ends on a title, and the camera goes back to the first frame
 { const [a, b] = LINES[LINES.length - 1], words = WORDS.slice(a, b + 1).map(w => w[0]);
-  const cut = words.findIndex(w => /[،,…:]$/.test(w)), tail = words.slice(cut + 1 < words.length - 1 ? cut + 1 : Math.max(0, words.length - 4));
-  const p = PLAN[LINES.length - 1] || {}, tt = (p.title || tail.join(' ')).replace(/[.!؟?…]+$/, '').replace(/'/g, '’'), at = b - tail.length + 1;
+  const cut = words.findIndex(w => /[،,…:]$/.test(w)), ila = words.findIndex((w, q) => q > 1 && nw(w) === 'الي');
+  // the payoff phrase: after the last pause mark, else what the line turns INTO («… إلى جسرٍ أطلسيٍّ حيويٍّ»), else its last words; 6 words at most
+  let tail = cut >= 0 && cut + 1 < words.length - 1 ? words.slice(cut + 1) : ila >= 0 && ila + 2 < words.length ? words.slice(ila + 1, ila + 4) : words.slice(Math.max(0, words.length - 4));
+  if (tail.length > 6) tail = tail.slice(-6);
+  const p = PLAN[LINES.length - 1] || {}, tt = (p.title || tail.join(' ')).replace(/[.!؟?…]+$/, '').replace(/'/g, '’'), at = a + Math.max(0, words.indexOf(tail[0]));
   use('title', 'punch');
   item(`title('${tt}', { at: ${A(at)}, until: ${A(b, true, .5)}, color: 'yellow', anim: 'words', mag: 1.5 });`, 'payoff');
   item(`punch(${A(at)}, { amt: .14 });`, 'payoff punch');

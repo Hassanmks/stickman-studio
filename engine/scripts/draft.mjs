@@ -42,7 +42,7 @@ const PLK = []; for (const [k, p] of Object.entries(PL.places)) for (const a of 
 PLK.sort((a, b) => b.toks.length - a.toks.length);
 const placeAt = i => { for (const P of PLK) { if (P.toks.every((tk, j) => i + j < WORDS.length && (j === 0 ? forms(WORDS[i][0]).has(tk) : N[i + j] === tk))) return { ...P, len: P.toks.length }; } return null; };
 // ---- numbers (the engine's spoken() rule, plus the unit the next words give it)
-const numv = w => { let s = nw(w); if (/^\d+$/.test(s)) return +s; if (NUMW[s] == null && s.length > 2 && 'وفبل'.includes(s[0])) s = s.slice(1); if (NUMW[s] == null && s.startsWith('ال')) s = s.slice(2); return NUMW[s]; };
+const numv = w => { let s = nw(w); if (/^\d+$/.test(s)) return +s; if (NUMW[s] == null && s.length > 2 && 'وفبل'.includes(s[0])) s = s.slice(1); if (NUMW[s] == null && s.startsWith('ال')) s = s.slice(2); if (NUMW[s] == null && s.length > 3 && s.endsWith('ا') && NUMW[s.slice(0, -1)] != null) s = s.slice(0, -1); return NUMW[s]; };
 const SCALE = { 1000: 'ألف', 1e6: 'مليون', 1e9: 'مليار' };
 const DANGER = ['اغلاق', 'اغلق', 'يغلق', 'تغلق', 'صاروخ', 'صواريخ', 'هجوم', 'حرب', 'تهديد', 'انفجار', 'ضربه', 'يقصف', 'مسيره', 'الحرب', 'الخطر', 'خطر'];
 

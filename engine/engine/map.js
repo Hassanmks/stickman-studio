@@ -1554,13 +1554,15 @@ const NUMW = { صفر: 0, واحد: 1, واحده: 1, وحده: 1, اثنين: 2
   سته: 6, ست: 6, سبعه: 7, سبع: 7, ثمانيه: 8, ثمان: 8, تمانيه: 8, تمنيه: 8, تمن: 8, تسعه: 9, تسع: 9, تسعود: 9, عشره: 10, عشر: 10, حداشر: 11, احدعشر: 11, اتناشر: 12, اثناعشر: 12, طناش: 12, تلاتاشر: 13, اربعتاشر: 14,
   خمستاشر: 15, ستاشر: 16, سبعتاشر: 17, تمنتاشر: 18, تسعتاشر: 19, عشرين: 20, عشرون: 20, ثلاثين: 30, ثلاثون: 30, تلاتين: 30, اربعين: 40, اربعون: 40, خمسين: 50, خمسون: 50, ستين: 60, ستون: 60, سبعين: 70, سبعون: 70,
   ثمانين: 80, ثمانون: 80, تمانين: 80, تسعين: 90, تسعون: 90, ميه: 100, مئه: 100, مايه: 100, ميتين: 200, مئتين: 200, الف: 1000, الاف: 1000, الفين: 2000, مليون: 1e6, ملايين: 1e6, مليونين: 2e6, مليار: 1e9, مليارات: 1e9,
+  اثني: 2, اثنتي: 2, اثنتا: 2, اثنتين: 2, اثنتان: 2, احد: 1, احدي: 1, ثماني: 8, مائه: 100, مئتان: 200, مئتا: 200, مائتين: 200, مائتان: 200, الفان: 2000, مليونان: 2e6, مليارين: 2e9, ملياران: 2e9,
+  ثلاثمئه: 300, ثلاثمائه: 300, اربعمئه: 400, اربعمائه: 400, خمسمئه: 500, خمسمائه: 500, ستمئه: 600, ستمائه: 600, سبعمئه: 700, سبعمائه: 700, ثمانمئه: 800, ثمانمائه: 800, ثمانيمئه: 800, ثمانيمائه: 800, تسعمئه: 900, تسعمائه: 900,
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000, million: 1e6, billion: 1e9 };
 // spoken names that differ from the atlas name
 const ALIAS = { USA: ['امريكا', 'الولايات', 'america'], GBR: ['بريطانيا', 'انجلترا', 'britain'], ARE: ['الامارات'], RUS: ['روسيا'], KOR: ['كوريا'], IRN: ['ايران'], TUR: ['تركيا'], CHN: ['الصين'], SOL: ['ارض الصومال'] };
 const forms = w => { const S = new Set([nw(w)]); for (const x of [...S]) if (x.length > 3 && 'وفبكل'.includes(x[0])) S.add(x.slice(1)); for (const x of [...S]) if (x.length > 4 && (x.startsWith('ال') || x.startsWith('لل'))) S.add(x.slice(2)); return S; };
 const heard = (name, a, b) => { const want = forms(String(name).split(/\s+/)[0]); return WORDS.some(w => w[1] >= a && w[1] <= b && [...forms(w[0])].some(f => want.has(f))); };
 function spoken(a, b) {   // every number that the words between a and b can mean ('واحد وعشرين ألف' -> 1, 21, 21000)
-  const ws = WORDS.filter(w => w[1] >= a && w[1] <= b).map(w => { let s = nw(w[0]); if (/^\d+$/.test(s)) return +s; if (NUMW[s] == null && s.length > 2 && 'وفبل'.includes(s[0])) s = s.slice(1); if (NUMW[s] == null && s.startsWith('ال')) s = s.slice(2); return NUMW[s]; });
+  const ws = WORDS.filter(w => w[1] >= a && w[1] <= b).map(w => { let s = nw(w[0]); if (/^\d+$/.test(s)) return +s; if (NUMW[s] == null && s.length > 2 && 'وفبل'.includes(s[0])) s = s.slice(1); if (NUMW[s] == null && s.startsWith('ال')) s = s.slice(2); if (NUMW[s] == null && s.length > 3 && s.endsWith('ا') && NUMW[s.slice(0, -1)] != null) s = s.slice(0, -1); return NUMW[s]; });
   const out = new Set();
   for (let i = 0; i < ws.length; i++) { if (ws[i] == null) continue; let tot = 0, cur = 0;
     for (let j = i; j < ws.length && ws[j] != null; j++) { const v = ws[j]; if (v >= 1000) { tot += (cur || 1) * v; cur = 0; } else if (v === 100) cur = (cur || 1) * 100; else cur += v; out.add(tot + cur); } }
