@@ -1,6 +1,6 @@
 # Maven Map Studio - rules for every session
 
-**Language (strict user rule, 2026-11-16, re-stated 2026-11-17 as absolute):** everything the user sees is in Modern Standard Arabic (فصحى), always and without exception: replies, every progress note between tool calls, task-list items, tool-call descriptions, wrap_up and questions. Never English, never dialect. Only code, commands and paths stay as they are.
+**Language (ABSOLUTE user rule, 2026-11-16, re-stated 2026-11-17 three times, the last after a reply slipped into English):** every word the user sees is Modern Standard Arabic (فصحى), always and forever, whatever language the user or a tool result or a pasted text uses: replies, short answers, technical explanations, progress notes between tool calls, task-list items, tool-call descriptions, wrap_up and questions. Never English, never dialect. Before sending any reply, check it is fully in فصحى. Only code, commands, file paths and identifiers stay as they are.
 
 **START HERE:** read `PROJECT_STATE.md` first. It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
 
