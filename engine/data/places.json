@@ -900,6 +900,38 @@
    "kind": "city",
    "span": 1.4,
    "src": "Wikipedia Dakhla: 23°43′N 15°57′W, on the Rio de Oro peninsula (Moroccan Sahara)"
+  },
+  "BAR_LEV": {
+   "ar": "خط بارليف",
+   "en": "Bar Lev Line",
+   "aka": [
+    "بارليف",
+    "خط بارليف"
+   ],
+   "pt": [
+    32.37,
+    30.57
+   ],
+   "in": "EGY",
+   "kind": "point",
+   "span": 1.2,
+   "src": "east bank of the Suez Canal opposite Ismailia, the central sector of the Bar Lev Line (Wikipedia: Bar Lev Line; canal east bank at Lake Timsah ~32.33 E)"
+  },
+  "ISMAILIA": {
+   "ar": "الإسماعيلية",
+   "en": "Ismailia",
+   "aka": [
+    "الإسماعيلية",
+    "الاسماعيلية"
+   ],
+   "pt": [
+    32.272,
+    30.604
+   ],
+   "in": "EGY",
+   "kind": "city",
+   "span": 0.8,
+   "src": "Ismailia city centre, Wikipedia/GeoNames 30.6043 N 32.2723 E"
   }
  },
  "lanes": {

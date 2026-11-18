@@ -607,6 +607,9 @@ function place(x, y, w, h) {
   }
   return null;
 }
+// a ship or a vehicle is not seen from orbit: it fades out above a 30 deg frame (they would pile up on the globe)
+const orbitVis = () => clamp((30 - C.span) / 6);
+const anchorIn = (x, y, front = true) => front && x >= SAFE.l && x <= W - SAFE.r && y >= SAFE.t * .6 && y <= H - 40;
 function rr(x, y, w, h, r) { X.beginPath(); X.moveTo(x + r, y); X.arcTo(x + w, y, x + w, y + h, r); X.arcTo(x + w, y + h, x, y + h, r); X.arcTo(x, y + h, x, y, r); X.arcTo(x, y, x + w, y, r); X.closePath(); }
 const pillSize = (s, px) => { X.font = fontAr(px); return [X.measureText(s).width + px * 1.0, px * 1.45]; };
 // a glass capsule (v4): blurred map behind, tinted with bg, thin bright edge. Returns its box, or null when there is no room.
@@ -702,7 +705,9 @@ export function region(names, o = {}) {
       if (st.hue) { X.save(); X.globalCompositeOperation = 'color'; X.globalAlpha *= fa * fk * (1 - wk * .9); X.fillStyle = st.hue; X.fill(p, 'evenodd'); X.restore(); }
       if (st.mul) { X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha *= fa * fk * (1 - wk); X.fillStyle = st.mul; X.fill(p, 'evenodd'); X.restore(); }
       if (st.fill) { X.save(); if (st.glow) { X.shadowColor = st.glow; X.shadowBlur = 50 * (o.pulse ? (.8 + .2 * Math.sin(t * 5)) : 1); } X.globalAlpha *= fa * fk * (1 - wk * .7); X.fillStyle = st.fill; X.fill(p, 'evenodd'); X.restore(); }
-      if (fl && fl.img) { X.save(); X.clip(p, 'evenodd'); X.globalAlpha *= fa * fk * (o.flagAlpha ?? .92); drawFlag(fl, box, t, o.wave !== false); X.restore(); }
+      if (fl && fl.img) { const fk2 = flagVis(cs).k;
+        if (fk2 > 0) { X.save(); X.clip(p, 'evenodd'); X.globalAlpha *= fa * fk * fk2 * (o.flagAlpha ?? .92); drawFlag(fl, box, t, o.wave !== false); X.restore(); }
+        if (fk2 < 1) { X.save(); X.globalAlpha *= fa * fk * (1 - fk2); X.globalCompositeOperation = 'color'; X.fillStyle = rgba(FLAGCOL, .9); X.fill(p, 'evenodd'); X.globalCompositeOperation = 'source-over'; X.fillStyle = rgba(FLAGCOL, .42); X.fill(p, 'evenodd'); X.restore(); } }
       if (wk > 0) { X.save(); X.globalAlpha *= wk * .9; X.fillStyle = '#fff8f0'; X.fill(p, 'evenodd'); X.restore(); }
       if (st.raised) { X.save(); X.clip(p, 'evenodd'); X.globalAlpha *= fa * fk; X.lineWidth = 14; X.strokeStyle = 'rgba(0,0,0,.22)'; X.stroke(p); X.lineWidth = 3; X.strokeStyle = 'rgba(255,255,255,.18)'; X.translate(0, 2); X.stroke(p); X.restore(); }
       X.globalAlpha *= Math.max(fk, .55); X.lineJoin = 'round'; X.lineWidth = o.lineWidth || st.lw; X.strokeStyle = st.line;
@@ -710,9 +715,12 @@ export function region(names, o = {}) {
       if (st.vivid) { X.shadowColor = 'rgba(255,255,255,.95)'; X.shadowBlur = 22 + 26 * (1 - EASE.out(clamp((t - this.t0) / .8))); }
       if (rev === 'draw' || rev === 'soft') { X.setLineDash([len * clamp(rev === 'soft' ? (t - this.t0) / .7 : a / .7), len + 10]); }
       X.stroke(p); X.restore();
-      if (o.label !== false && o.label != null) {
+      if (o.label !== false && o.label != null) TXQ ? TXQ.push(() => this.lbl(t, b)) : this.lbl(t, b);
+    },
+    lbl(t, b) {
+      {
         const c = cs[0], txt = o.label === true ? (RTL ? c.ar : c.en) : o.label;
-        const at = o.labelAt || [c.lx, c.ly]; const [x, y, front] = P(at[0], at[1]); if (!front) return;
+        const at = o.labelAt || [c.lx, c.ly]; const [x, y, front] = P(at[0], at[1]); if (!anchorIn(x, y, front)) return;
         const la = clamp((t - this.t0 - (o.labelDelay ?? .25)) / .4); if (la <= 0) return;
         const lb = b * (o.labelUntil != null ? 1 - clamp((t - when(o.labelUntil)) / .3) : 1); if (lb <= 0) return;
         const sc = lerp(.6, 1, EASE.back(la));
@@ -811,7 +819,8 @@ export function ping(pt, o = {}) {
 export function label(pos, text, o = {}) {
   return add({ kind: 'label', place: Array.isArray(pos) ? { what: `label '${text}'`, pt: pos, in: o.in } : null, t0: early(o, 'label'), t1: o.until != null ? when(o.until) : null, dur: o.dur ?? .4, outDur: o.outDur ?? .35, z: o.z ?? 6, sfx: o.sfx,
     draw(t) {
-      const [a, b] = life(this, t); if (a <= 0 || b <= 0) return; const [x, y] = Array.isArray(pos) ? P(...pos) : [pos.x, pos.y];
+      const [a, b] = life(this, t); if (a <= 0 || b <= 0) return; const [x, y, fr] = Array.isArray(pos) ? P(...pos) : [pos.x, pos.y, true];
+      if (Array.isArray(pos) && !anchorIn(x, y, fr)) return;   // root fix 6: its place is off screen, the label is not dragged in
       const anim = o.anim || 'ghost';
       let sc = 1, alpha = 1, dy = o.dy || 0;
       if (anim === 'ghost') {
@@ -829,7 +838,7 @@ export function label(pos, text, o = {}) {
         return pill(q[0], q[1], text, col(o.pill), col(o.color || 'white'), px, alpha * clamp((a - .2) * 2), lerp(.7, 1, EASE.back(clamp((a - .2) * 1.4))), true);
       }
       if (o.pill) return pill(x, y + dy, text, col(o.pill), col(o.color || 'white'), px, alpha, sc);
-      X.font = fontAr(px, o.font || 'Alexandria'); const q = place(x, y + dy, X.measureText(text).width + 24, px * 1.25); if (!q) return;
+      X.font = fontAr(px, o.font || 'Alexandria'); const lw = (X.measureText(text).width + 24) * 1.2, q = place(x, y + dy, lw, px * 1.25 * 1.2); if (!q || Math.abs(q[0] - x) > lw * .3) return;
       X.save(); X.globalAlpha = alpha; X.translate(q[0], q[1]); X.scale(sc, sc);
       X.shadowColor = 'rgba(0,0,0,.7)'; X.shadowBlur = 16;
       strokeText(0, 0, text, fontAr(px, o.font || 'Alexandria'), col(o.color || 'white'), 'rgba(0,0,0,.75)', 12);
@@ -844,7 +853,7 @@ export function number(pos, text, o = {}) {
   const geo = Array.isArray(pos), px = geo ? (o.size || TYPE.label * 1.4) : TYPE.hero, c = col(o.color || 'yellow'), t0 = early(o, 'number');
   let pre = text, run = '', post = '';
   if (o.count) {
-    const fmt = o.count.fmt || (n => Math.round(n).toLocaleString('en-US')), i = text.indexOf('#');
+    const fmt = o.count.fmt || (n => o.count.to >= 1000 && o.count.to <= 2100 && Number.isInteger(o.count.to) && !/[%$]/.test(text) && !/كم|km|برميل|مليون|دولار/.test(text + (o.sub || '')) ? String(Math.round(n)) : Math.round(n).toLocaleString('en-US')), i = text.indexOf('#');
     pre = text.slice(0, i).trim(); post = text.slice(i + 1); run = fmt(o.count.to);
     if (post.startsWith('%')) { run += '%'; post = post.slice(1); } post = post.trim();
   }
@@ -1385,7 +1394,20 @@ const flagSrc = k => { const c = String(k).length === 3 ? ISO2[String(k).toUpper
 const spriteSrc = n => '/assets/' + (AIDX.sprites[n] || (n.includes('.') ? n : `emoji/${n}.png`));
 const photoSrc = n => n.startsWith('/') ? n : '/assets/' + (AIDX.photos[n] || `photos/${n}`);
 // A2 vivid: a saturated coat (85-95 %), a glowing white edge and a white-hot entry flash
+const FLAGCOL = '#2fd6c8';   // the solid colour a flag falls back to (root fix 4)
 function vivid(c, op) { return { fill: rgba(c, op ?? .88), hue: rgba(c, .9), line: '#ffffff', lw: 4.5, vivid: true }; }
+// root fix 4 (2026-11-17): a flag only on a country that is mostly on screen and big enough to read. 1 = draw the flag,
+// 0 = a solid colour instead (in between: a cross-fade). Measured on the border points of the country with the camera of this frame:
+// >= 60 % of them on screen and the visible part >= ~260 px both ways (else the flag is stretched into a white blob).
+export function flagVis(cs) {
+  let tot = 0, inn = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const c of cs) for (const r of c.r) { const st = 2 * Math.max(1, Math.floor(r.length / 2 / 400));
+    for (let i = 0; i < r.length; i += st) { tot++; const q = P(r[i] / 1e4, r[i + 1] / 1e4); if (!q[2] || q[0] < 0 || q[0] > W || q[1] < 0 || q[1] > H) continue; inn++;
+      if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; } }
+  if (!tot || !inn) return { k: 0, frac: 0, w: 0, h: 0 };
+  const frac = inn / tot, w = x1 - x0, h = y1 - y0;
+  return { k: clamp((frac - .55) / .1) * clamp((Math.min(w, h) - 230) / 60), frac, w, h };
+}
 // A2 flag inside the borders, optionally waving like cloth (vertical strips shifted on a sine, lit and shaded)
 function drawFlag(e, box, t, wave) {
   if (!e.r) { const r = document.createElement('canvas'); r.width = 960; r.height = 720; r.getContext('2d').drawImage(e.img, 0, 0, 960, 720); e.r = r; }
@@ -1536,7 +1558,7 @@ export function sprite(name, pos, o = {}) {
   }
   const medium = o.on || (K && K.m) || null, clr = medium === 'sea' && top && o.fit !== false ? clearance(G, pos) : null, air = medium === 'air';
   const it = add({ kind: 'sprite', name, K, top, moving, G, pos0: pos, on: medium, t0, t1: o.until != null ? when(o.until) : null, dur: o.dur ?? (top ? .4 : .5), outDur: .35, z: o.z ?? 6.5, sfx: o.sfx, mag: o.mag, from: o.from,
-    cause: o.cause, miss: o.miss, hasTo: !!o.to, mv: [mv0, tr ? mv0 + tr : null], kmps: G ? (tr ? G.L / tr : G.L * (o.speed || .06)) : 0, sized: typeof o.size === 'number',
+    cause: o.cause, miss: o.miss, hasTo: !!o.to, mv: [mv0, tr ? mv0 + tr : null], kmps: G ? (tr ? G.L / tr : G.L * (o.speed || .06)) : 0, sized: typeof o.size === 'number', amb: !!o.ambient,
     place: !G && Array.isArray(pos) && o.in ? { what: 'sprite ' + name, pt: pos, in: o.in } : null,
     // progress along the route 0..1. After a hit (stopT) the ship is dead in the water: it glides to a stop.
     uAt(t) { if (this.stopT != null && t > this.stopT) t = this.stopT + .6 * (1 - Math.exp(-(t - this.stopT) / .6)); return tr ? ez(clamp((t - mv0) / tr)) : (Math.max(0, t - this.t0) * (o.speed || .06) + (o.phase || 0)) % 1; },
@@ -1554,7 +1576,7 @@ export function sprite(name, pos, o = {}) {
       const img = e.img, L = this.lenAt() * (C.tilt ? clamp(ps, .35, 2.2) : 1), wI = L * img.width / img.height; this.Lnow = L;
       let ang = ((o.heading ?? 0) - 90) * D2R;
       if (G) { const dk = Math.max(.01, L * .55 / pxPerKm()), A = P(...geoAt(G, d - dk)), B = P(...geoAt(G, d + dk)); ang = Math.atan2(B[1] - A[1], B[0] - A[0]); }   // the chord over about one ship length: a turn is eased
-      const al = clamp(a * 2.2) * b * (G && !tr ? clamp(Math.min(u, 1 - u) * 14) : 1); if (al <= 0) return;   // a looping ship fades at the two ends of its route
+      const al = clamp(a * 2.2) * b * (G && !tr ? clamp(Math.min(u, 1 - u) * 14) : 1) * orbitVis(); if (al <= 0) return;   // ships are not seen from orbit   // a looping ship fades at the two ends of its route
       const arc = air && o.to ? Math.sin(Math.PI * clamp(u)) : 0, sc = lerp(.84, 1, EASE.out(a)) * (1 - EASE.in(1 - b) * .2) * (1 + .12 * arc);
       const spd = G ? clamp(Math.abs(this.uAt(t) - this.uAt(t - .04)) / .04 / (tr ? 1 / tr : (o.speed || .06))) : 0;   // 0..1 of its cruise speed (0 once it has arrived or stopped)
       if (G && medium === 'sea' && spd > .02) wake(G, d, L * sc, wI * sc, al * spd, name === 'dhow' ? .6 : 1);
@@ -1759,6 +1781,7 @@ export function lift(code, o = {}) {
 // ------------------------------------------------------------------ v6: the logic checklist (run by start(), before any frame)
 // 1 direction  2 medium (water / land)  3 relative speeds  4 relative sizes  5 flags and places  6 cause and effect
 // 7 picture = speech (every number and country on screen is spoken)  8 physics (one wind, one sun)  9 life (no dead close shot, a named moving object moves)
+// 12 no collision; plus the root fixes of the 7 unforgivable errors (flags fit, labels and route ends on screen, story ship in frame, no empty sea)
 // A failed check sets window.ERR: render.mjs prints the list and stops, so a wrong frame is never rendered.
 const NUMW = { صفر: 0, واحد: 1, واحده: 1, وحده: 1, اثنين: 2, اتنين: 2, اثنان: 2, اثنا: 2, اتنا: 2, جوج: 2, ثلاثه: 3, ثلاث: 3, تلاته: 3, تلات: 3, اربعه: 4, اربع: 4, ربعه: 4, خمسه: 5, خمس: 5,
   سته: 6, ست: 6, سبعه: 7, سبع: 7, ثمانيه: 8, ثمان: 8, تمانيه: 8, تمنيه: 8, تمن: 8, تسعه: 9, تسع: 9, تسعود: 9, عشره: 10, عشر: 10, حداشر: 11, احدعشر: 11, اتناشر: 12, اثناعشر: 12, طناش: 12, تلاتاشر: 13, اربعتاشر: 14,
@@ -1795,7 +1818,7 @@ function logic() {
   for (const i of ITEMS) if (i.kind === 'ships') scan(`ships() route (${ts(i.t0)})`, i.G, 'sea'); else if (i.kind === 'path' && i.sea) scan(`sea path (${ts(i.t0)})`, i.G, 'sea');
   R.ok.push(`(2) medium: ${routes} route(s) and ${spots} fixed object(s) checked against the coastlines`);
   // 3 relative speeds while two things move at the same time (km of map per second of video)
-  const M = S.filter(i => i.moving && i.K && i.kmps > 0).map(i => ({ n: i.name, v: i.K.v, s: i.kmps, a: i.mv[0], b: i.mv[1] ?? i.t1 ?? 1e9 })).concat(ITEMS.filter(i => i.kind === 'ships').map(i => ({ n: 'ships()', v: 33, s: i.kmps, a: i.t0, b: i.t1 ?? 1e9 })));
+  const M = S.filter(i => i.moving && i.K && i.kmps > 0).map(i => ({ n: i.name, v: i.K.v, s: i.kmps, a: Math.max(i.mv[0], i.t0), b: Math.min(i.mv[1] ?? 1e9, i.t1 ?? 1e9) })).concat(ITEMS.filter(i => i.kind === 'ships').map(i => ({ n: 'ships()', v: 33, s: i.kmps, a: i.t0, b: i.t1 ?? 1e9 })));
   for (const p of M) for (const q of M) { if (p.v < q.v * 1.5 || Math.min(p.b, q.b) - Math.max(p.a, q.a) < .3) continue; const need = clamp(Math.sqrt(p.v / q.v), 1.25, 2.2);
     if (p.s < q.s * need) f(3, `${p.n} (${p.s.toFixed(0)} km/s on screen) must be at least ${need.toFixed(1)}x faster than ${q.n} (${q.s.toFixed(0)} km/s) while both move, around ${ts(Math.max(p.a, q.a))}`); }
   R.ok.push(`(3) speeds: ${M.map(m => `${m.n} ${m.s.toFixed(0)}`).join(', ') || 'nothing moves'} (km/s on screen), order follows the real speeds`);
@@ -1863,6 +1886,43 @@ function logic() {
         else if (!ok) R.info.push(`(9) '${WORDS[i][0]}' at ${ts(tw)} names ${o.name}, which has no top view yet`);
         i += k.length - 1; } } }
   R.ok.push(`(9) life: ${dead.filter(d => d.b - d.a > 3).length ? 'dead close shot(s) found' : 'every close shot over water holds something alive'}; ${named} spoken moving object word(s) checked`);
+  // ---- the root fixes of the 7 unforgivable errors (hormuz-drone-v2, 2026-11-17) ----
+  const onScr = (q, m = 0) => q[2] && q[0] >= m && q[0] <= W - m && q[1] >= m && q[1] <= H - m;
+  const lineEnd = t0 => { for (const w of WORDS) if (w[1] >= t0 - .05 && /[.!؟?…]$/.test(w[0])) return w[2] ?? w[1]; return END; };
+  // 9+ (error 7): no frame of plain empty water, even a wide one: a shot that shows only sea for more than 2 s holds something alive
+  { let r0 = null, bad = 0;
+    for (let t = 0; t <= END + 1e-6; t += .25) { const c = camFinal(t), hw = c.span * .5 / Math.max(.2, Math.cos(c.lat * D2R)), hh2 = c.span * .89; let land = 0;
+      for (let gx = -2; gx <= 2; gx++) for (let gy = -4; gy <= 4; gy++) { const pt = [c.lon + hw * gx / 2.2, c.lat + hh2 * gy / 4.4]; if (landAt(pt) || inCanal(pt)) land++; }
+      const empty = land === 0 && aliveAt(t) === 0;
+      if (empty && r0 == null) r0 = t; if ((!empty || t + .25 > END) && r0 != null) { if (t - r0 > 2) { bad++; f(9, `${ts(r0)} - ${ts(t)}: the frame shows only water and nothing alive (an empty sea): frame a coast or put traffic in it`); } r0 = null; } }
+    R.ok.push(`(9+) empty water: ${bad ? bad + ' frame(s) of plain sea' : 'no frame of plain empty water'}`); }
+  // 5+ (error 4): a flag only on a country that is mostly on screen (>= 60 %) and >= ~260 px both ways while the flag is up
+  for (const i of ITEMS) { if (i.kind !== 'region' || !i.flag) continue; let n = 0, worst = null;
+    for (let t = i.t0 + i.dur; t <= Math.min(i.t1 ?? END, END); t += .25) { setCam(camFinal(t)); const v = flagVis(i.codes); if (v.k < .99) { n++; if (!worst || v.k < worst.k) worst = { ...v, t }; } }
+    if (n * .25 > .5) f(5, `flag of ${i.codes[0].en} at ${ts(i.t0)}: for ${(n * .25).toFixed(2)} s only ${(worst.frac * 100).toFixed(0)} % of the country is on screen (${worst.w.toFixed(0)}x${worst.h.toFixed(0)} px) around ${ts(worst.t)}: a colour, not a flag (the flag would melt into a white blob)`); }
+  // 6 (error 6): a label is whole inside the safe area (its place on screen); a land route shows both ends, each with its name
+  for (const i of ITEMS) { if (i.kind !== 'path' || i.sea) continue; const A = i.pts[0], B = i.pts[i.pts.length - 1];
+    const t = Math.min(i.t0 + i.dur + .4, i.t1 ?? END, END); setCam(camFinal(t));
+    const qa = P(A[0], A[1]), qb = P(B[0], B[1]), off = [qa, qb].filter(q => !onScr(q, 30)).length;
+    if (off) { f(6, `path at ${ts(i.t0)}: ${off === 2 ? 'both ends are' : 'one end is'} off screen at ${ts(t)} (a route that ends nowhere): frame both ends`); continue; }
+    const named = pt => ITEMS.some(l => (l.kind === 'label' || l.kind === 'pin' || (l.kind === 'sprite' && l.place)) && (l.place ? hav(l.place.pt, pt) < 45 : false) && l.t0 <= t + .8 && (l.t1 == null || l.t1 >= t));
+    for (const [pt, k] of [[A, 'start'], [B, 'end']]) if (!named(pt)) f(6, `path at ${ts(i.t0)}: its ${k} ${fx(pt)} has no name on screen (a route that ends in the desert): label the place at each end`); }
+  for (const i of ITEMS) { if (i.kind !== 'label' || !i.place) continue; const e = Math.min(i.t1 ?? END, END); let n = 0, off = 0, at = null;
+    for (let t = i.t0 + .3; t <= e; t += .25) { n++; setCam(camFinal(t)); const q = P(i.place.pt[0], i.place.pt[1]); if (!anchorIn(q[0], q[1], q[2])) { off++; at = at ?? t; } }
+    if (n && off / n > .5) f(6, `${i.place.what} at ${ts(i.t0)}: its place is off screen for ${(off * .25).toFixed(2)} of ${(n * .25).toFixed(2)} s from ${ts(at)} (the label would be hidden or hang from the edge): frame the place or drop the label`); }
+  // 7 (error 7): a story ship (not background traffic) is whole inside the frame while its line is spoken
+  for (const i of S) { if (!i.moving || i.amb || i.on !== 'sea' || !i.top) continue; const e = Math.min(lineEnd(i.t0), i.t1 ?? END, END); let out = 0, at = null;
+    for (let t = i.t0 + .5; t <= e; t += .25) { setCam(camFinal(t)); const g = i.geoPos(t), q = P(g[0], g[1], 0), m = i.lenAt() * .5; if (!onScr(q, m)) { out++; at = at ?? t; } }
+    if (out * .25 > .5) f(7, `'${i.name}' (${ts(i.t0)}) is cut by the frame edge or off screen for ${(out * .25).toFixed(2)} s from ${ts(at)} while its line is spoken: start it inside the frame or hold the camera on it`); }
+  // 12 no collision (error 1): sea objects on screen together keep a gap >= their mean length (sampled every 0.1 s)
+  { const SEA = S.filter(i => i.on === 'sea' && i.top && i.K); let hits = 0; const seen = new Set();
+    for (let t = 0; t <= END + 1e-6 && SEA.length > 1; t += .1) { const on = SEA.filter(i => t >= i.t0 + i.dur * .5 && (i.t1 == null || t <= i.t1)); if (on.length < 2) continue; setCam(camFinal(t)); if (orbitVis() < .3) continue;
+      const Q = on.map(i => { const g = i.geoPos(t), q = P(g[0], g[1], 0); return { i, q, L: i.lenAt() }; }).filter(o => onScr(o.q, -40));
+      for (let x = 0; x < Q.length; x++) for (let y = x + 1; y < Q.length; y++) { const A = Q[x], B = Q[y], d = Math.hypot(A.q[0] - B.q[0], A.q[1] - B.q[1]), need = (A.L + B.L) / 2;
+        if (d < need) { const key = A.i.t0 + '|' + B.i.t0; if (seen.has(key)) continue; seen.add(key); hits++;
+          const [p, q] = A.i.amb && !B.i.amb ? [A, B] : [B, A];   // the background ship is named first: it is the one to move
+          f(12, `'${p.i.name}' (${ts(p.i.t0)}) and '${q.i.name}' (${ts(q.i.t0)}) overlap at ${ts(t)}: ${d.toFixed(0)} px apart, they need ${need.toFixed(0)} px (two ships on top of each other)`); } } }
+    R.ok.push(`(12) no collision: ${hits ? hits + ' overlap(s)' : 'sea objects keep their distance'} (${SEA.length} sea object(s))`); }
   return R;
 }
 // how many living things are on screen at t: moving objects (where the camera sees them), ships(), explosions, smoke and fire
@@ -1880,11 +1940,17 @@ export let END = CFG.end || (TIMING.dur ? TIMING.dur + .6 : 10);
 export function end(t) { END = when(t); }
 
 // ------------------------------------------------------------------ frame
+const TEXTK = new Set(['label', 'name', 'pin', 'measure', 'ruler']); let TXQ = null;
+function flushTX() { const q = TXQ; TXQ = null; for (const f of q) f(); }
 function frame(t) {
   setCam(camFinal(t)); drawGlobe(t);
   BOXES = []; reserveProgress(t); if (CAP && (!CAP.yield || layerBusy(t) < .99)) reserve(0, CAP.y - CAP.size * .85, W, CAP.y + CAP.size * .85); const n0 = BOXES.length; for (const it of ITEMS) if (it.res) it.res(t); reserveLogo(t, n0);
   X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1; X.clearRect(0, 0, W, H); X.drawImage(gl.canvas, 0, 0);
-  for (const it of [...ITEMS].sort((a, b) => (a.z - b.z) || (a.t0 - b.t0))) it.draw(t);
+  // root fixes 2+3: every map text (labels, place names, pins, rulers, region labels) is drawn after every map object, before
+  // titles / numbers / photos: a ship never covers a place name, a border never cuts a country name
+  const ez = i => i.z < 7 && TEXTK.has(i.kind) ? 6.99 + i.z * 1e-4 : i.z; TXQ = [];
+  for (const it of [...ITEMS].sort((a, b) => (ez(a) - ez(b)) || (a.t0 - b.t0))) { if (TXQ && ez(it) >= 6.99) flushTX(); it.draw(t); }
+  if (TXQ) flushTX();
   const v = X.createRadialGradient(W / 2, H * .45, H * .32, W / 2, H * .45, H * .78); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${LOOK === 'atlas' ? .32 : .42})`); X.fillStyle = v; X.fillRect(0, 0, W, H);
   drawCaptions(t); drawProgress(t); drawLogo(t);
   for (const [ft, k] of FLASH) { const u = (t - ft) / .32; if (u >= 0 && u < 1) { X.save(); X.globalCompositeOperation = 'lighter'; X.fillStyle = `rgba(255,236,210,${k * (1 - u) ** 2})`; X.fillRect(0, 0, W, H); X.restore(); } }

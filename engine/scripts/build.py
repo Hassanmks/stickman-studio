@@ -108,7 +108,7 @@ if step == 'director':
             tt = [float(x) for x in re.findall(r'(\d+\.\d+) s', f)]; low = f.lower()
             keys = [a3 for en, a3 in EN.items() if en in low] + re.findall(r"'([a-z_]+)'", f) + [k for k in ('measure', 'number', 'label', 'flag', 'path', 'lane') if k in low]
             code = int(re.search(r'FAIL \((\d+)\)', f).group(1))   # the gate's rule number says what kind of item it is
-            keys += {1: ['craft'], 2: ['craft', 'route'], 3: ['craft'], 4: ['craft'], 5: ['country', 'place'], 6: ['craft', 'danger'], 7: ['number', 'country'], 8: ['craft']}.get(code, [])
+            keys += {1: ['craft'], 2: ['craft', 'route'], 3: ['craft'], 4: ['craft'], 5: ['country', 'place'], 6: ['craft', 'danger', 'place', 'route'], 7: ['number', 'country', 'craft'], 8: ['craft'], 9: ['craft'], 12: ['ambient', 'craft']}.get(code, [])
             keys += [w for w in re.findall(r'[a-z_]{4,}', low) if any(w in i['why'] for i in items)]
             cand = [i for i in items if i['t'] is not None and i['id'] not in drops and (not tt or min(abs(i['t'] - x) for x in tt) <= .8)]
             best = [i for i in cand if any(k.lower() in i['why'].lower() for k in keys)] or ([] if keys else cand)

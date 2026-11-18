@@ -67,6 +67,11 @@ const merge = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[
 const frame = (bb, min) => ({ lon: r3((bb[0] + bb[2]) / 2), lat: r3((bb[1] + bb[3]) / 2), span: r2(spanOfBox(bb, min)) });
 const hav = (a, b) => { const R = Math.PI / 180, dl = (b[1] - a[1]) * R, dn = (b[0] - a[0]) * R, h = Math.sin(dl / 2) ** 2 + Math.cos(a[1] * R) * Math.cos(b[1] * R) * Math.sin(dn / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
 const far = (a, b) => Math.hypot((a.lon - b.lon) * kx(a.lat), a.lat - b.lat) / Math.min(a.span, b.span) + Math.abs(Math.log(a.span / b.span));
+// root fix 4: a flag only when >= 60 % of the country's box is inside the frame and its visible part is >= ~260 px both ways
+// (frame: 1080 px across span degrees of distance, 1920 px down 1.78 x span degrees of latitude)
+const flagFits = (F, bb) => { if (!F) return false; const hw = F.span * .5 / kx(F.lat), hh = F.span * .89;
+  const ix = Math.max(0, Math.min(bb[2], F.lon + hw) - Math.max(bb[0], F.lon - hw)), iy = Math.max(0, Math.min(bb[3], F.lat + hh) - Math.max(bb[1], F.lat - hh));
+  const area = Math.max(1e-6, (bb[2] - bb[0]) * (bb[3] - bb[1])); return ix * iy / area >= .6 && ix / (2 * hw) * 1080 >= 300 && iy / (2 * hh) * 1920 >= 300; };
 const onLand = ([x, y]) => { const X = x * 1e4, Y = y * 1e4;
   for (const c of WORLD.countries) { if (x < c.bb[0] || x > c.bb[2] || y < c.bb[1] || y > c.bb[3]) continue; let ins = false;
     for (const r of c.r) for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const xi = r[i], yi = r[i + 1], xj = r[j], yj = r[j + 1]; if ((yi > Y) !== (yj > Y) && X < (xj - xi) * (Y - yi) / (yj - yi) + xi) ins = !ins; }
@@ -109,7 +114,7 @@ const ROUTE = k => PL.lanes[k] ? { kind: 'lane', pts: PL.lanes[k].pts, call: `la
 const out = [], cams = [], used = new Set(['cam', 'T', 'start', 'end', 'captions']), report = { lines: [], dropped: [], notes: [] };
 const use = (...n) => n.forEach(x => used.add(x));
 let id = 0; report.items = [];
-const item = (src, why, t = null) => { const k = `d${++id}`; report.items.push({ id: k, why, t: t == null ? null : r2(t) }); if (DROP.has(k)) { report.dropped.push({ id: k, why, src }); return; } out.push(`${src}   // ${k}`); };
+const item = (src, why, t = null, alt = null) => { const k = `d${++id}`; report.items.push({ id: k, why, t: t == null ? null : r2(t) }); if (DROP.has(k)) { report.dropped.push({ id: k, why, src }); if (alt) out.push(`${alt}   // ${k} (the gate refused the first form)`); return; } out.push(`${src}   // ${k}`); };
 const emph = new Set(); let prev = null, firstFrame = null, night = false, lastTitleEnd = -1;
 let firstShot = null;   // the first frame of the film and the line that holds it: the orbit opening dives onto it
 const numbersSeen = [];
@@ -139,15 +144,26 @@ const droneMode = (F, main, ctrs, fx) => {
   if (main) return 'orbit';
   if (ctrs.length === 2) { const [p1, p2] = ctrs.map(e => e.c.bb); if (p1[0] <= p2[2] && p2[0] <= p1[2] && p1[1] <= p2[3] && p2[1] <= p1[3]) return 'border'; }
   return null; };
-let ph = 0, pmode = null, orbitDir = 1, lineMode = null;
+let ph = 0, pmode = null, orbitDir = 1, lineMode = null, camIn = 0;
 report.hops = 0; report.drone = {};
 
 const dens = (pts, st) => { const o = [pts[0]]; for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / st)); for (let k = 1; k <= n; k++) o.push([x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n]); } return o; };
 const pick = (pts, n) => { const s = Math.max(1, Math.floor((pts.length - 1) / (n - 1))), o = []; for (let i = 0; i < pts.length; i += s) o.push(pts[i]); if (o[o.length - 1] !== pts[pts.length - 1]) o.push(pts[pts.length - 1]); return o.map(q => [r3(q[0]), r3(q[1])]); };
+// a polyline shifted sideways by d degrees (of distance) to its right, point by point
+const offsetLine = (pts, d) => pts.map((q, i) => { const A1 = pts[Math.max(0, i - 1)], B1 = pts[Math.min(pts.length - 1, i + 1)], k = kx(q[1]);
+  let dx = (B1[0] - A1[0]) * k, dy = B1[1] - A1[1]; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n; return [r3(q[0] + dy * d / k), r3(q[1] - dx * d)]; });
+// root fix 7: the part of a route inside the frame, from just before its point nearest the middle (a story ship starts inside)
+const inFrameRun = (F, pts) => { const hw = F.span * .5 / kx(F.lat), hh = F.span * .89, inB = q => Math.abs(q[0] - F.lon) <= hw * .8 && Math.abs(q[1] - F.lat) <= hh * .8;
+  const D = dens(pts, F.span / 30); let ic = 0; D.forEach((q, i) => { if (hav(q, [F.lon, F.lat]) < hav(D[ic], [F.lon, F.lat])) ic = i; });
+  if (!inB(D[ic])) return null; let s0 = ic; while (s0 > 0 && inB(D[s0 - 1]) && ic - s0 < D.length * .1) s0--; const run = D.slice(s0); let e = 0; while (e < run.length && inB(run[e])) e++;
+  return e >= 2 ? run.slice(0, e) : null; };
 function ambient(F, li, a, b, UNTIL, craft) {
+  const AMB = () => r2(Math.max(camIn, ts(a)));   // background traffic appears once the camera has landed (while it moves, km look like nothing)
   const hw = F.span * .5 / kx(F.lat), hh = F.span * .89, inB = (q, m) => Math.abs(q[0] - F.lon) <= hw * m && Math.abs(q[1] - F.lat) <= hh * m;
   const runs = [];
-  for (const [k, v] of Object.entries(PL.lanes)) { const D = dens(v.pts, F.span / 30); let cur = [], best = [];
+  // logic of the film's year: the Suez Canal was closed to all shipping from June 1967 to June 1975 (no traffic in it then)
+  const closed = k => CFGJ.year && /SUEZ/.test(k) && CFGJ.year >= 1967 && CFGJ.year <= 1975;
+  for (const [k, v] of Object.entries(PL.lanes)) { if (closed(k)) continue; const D = dens(v.pts, F.span / 30); let cur = [], best = [];
     for (const q of D) { if (inB(q, 1.15)) cur.push(q); else { if (cur.length > best.length) best = cur; cur = []; } }
     if (cur.length > best.length) best = cur;
     if (best.length >= 2 && hav(best[0], best[best.length - 1]) / 111.2 >= F.span * .45) {
@@ -156,20 +172,27 @@ function ambient(F, li, a, b, UNTIL, craft) {
       const fw = best.slice(Math.max(0, ic - Math.round(best.length * .18))), bw = best.slice(0, Math.min(best.length, ic + Math.round(best.length * .18) + 1)).reverse();
       runs.push({ k, pts: fw.length >= bw.length ? fw : bw }); } }
   const kind = craft && (CRAFT[craft] || {}).m === 'sea' && TOPS.has(craft) ? craft : 'tanker', dur = Math.max(4, te(b) - ts(a) + 1.2);
-  runs.sort((x, y) => y.pts.length - x.pts.length); const seen = [], use2 = [];
-  for (const r of runs) { const mid = r.pts[r.pts.length >> 1]; if (seen.some(m => hav(m, mid) < F.span * 111 * .08)) continue; seen.push(mid); use2.push(r); if (use2.length === 2) break; }   // two lanes that share the same water are one
-  if (use2.length) { use('sprite');
-    use2.forEach((r, j) => { const pts = pick(r.pts, 9), K = j === 0 ? kind : (kind === 'tanker' ? 'container_ship' : 'tanker');
-      item(`sprite('${K}', null, { at: ${A(a)}, early: 0, along: ${JSON.stringify(pts)}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, until: ${UNTIL} });   // traffic on ${r.k}`, `craft ${K} (ambient)`, ts(a)); });
-    if (use2.length === 1) { const pts = pick(use2[0].pts, 9), dl = Math.min(1.6, dur * .3);
-      item(`sprite('${kind}', null, { at: ${A(a, false, dl)}, early: 0, along: ${JSON.stringify(pts)}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, until: ${UNTIL} });   // the next ship on ${use2[0].k}`, `craft ${kind} (ambient)`, ts(a) + dl); }
-    report.ambient = (report.ambient || 0) + use2.length; return; }
+  runs.sort((x, y) => y.pts.length - x.pts.length); const use2 = [];
+  // root fix 1: two lanes are «the same water» when their MEAN distance is small (not only their middles)
+  const meanD = (P1, P2) => P1.reduce((s2, q) => s2 + Math.min(...P2.map(w => hav(q, w))), 0) / P1.length;
+  for (const r of runs) { if (use2.some(u => meanD(r.pts, u.pts) < F.span * 111 * .12)) continue; use2.push(r); if (use2.length === 2) break; }
+  if (use2.length) { use('sprite'); const r = use2[0], pts = pick(r.pts, 9);
+    item(`sprite('${kind}', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pts)}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // traffic on ${r.k}`, `craft ${kind} (ambient)`, ts(a));
+    // the second ship sails the OTHER way on a parallel lane, offset sideways far enough to never touch the first, and only at sea
+    const K2 = kind === 'tanker' ? 'container_ship' : 'tanker', back = [...r.pts].reverse(); let two = null;
+    for (const off of [.34, -.34, .42, -.42, .28, -.28]) { const q = offsetLine(back, F.span * off); if (q.every(w => !onLand(w)) && q.filter(w => inB(w, .95)).length >= q.length * .5) { two = q; break; } }
+    if (two) item(`sprite('${K2}', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pick(two, 9))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // two-way traffic: the opposite lane of ${r.k}`, `craft ${K2} (ambient)`, ts(a));
+    else { const run = r.pts, cum = [0]; for (let q = 1; q < run.length; q++) cum.push(cum[q - 1] + hav(run[q - 1], run[q]));   // one-way convoy: a constant gap of ~0.4 frame
+      const gap = F.span * 111 * .4, j0 = cum.findIndex(c => c >= gap);
+      if (j0 > 0 && cum[cum.length - 1] - cum[j0] > gap * .5) { two = run.slice(j0);
+        item(`sprite('${K2}', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pick(two, 9))}, travel: ${r2(dur * 1.7 * (cum[cum.length - 1] - cum[j0]) / cum[cum.length - 1])}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // the next ship on ${r.k}, ${gap.toFixed(0)} km ahead at the same speed`, `craft ${K2} (ambient)`, ts(a)); } }
+    report.ambient = (report.ambient || 0) + (two || use2[1] ? 2 : 1); return; }
   // no lane in the frame: one ship across open water, on the first heading that stays at sea all the way
   for (let k = 0; k < 8; k++) { const h = (k * 22.5 + 30) * Math.PI / 180, dx = Math.sin(h) * hw * 1.1, dy = Math.cos(h) * hh * .55;
     for (const off of [0, .3, -.3]) { const c = [F.lon - Math.cos(h) * hw * off, F.lat + Math.sin(h) * hh * off * .5];
       const pts = Array.from({ length: 13 }, (_, i) => [r3(c[0] - dx + 2 * dx * i / 12), r3(c[1] - dy + 2 * dy * i / 12)]);
       if (pts.every(q => !onLand(q))) { use('sprite');
-        item(`sprite('container_ship', null, { at: ${A(a)}, early: 0, along: ${JSON.stringify(pick(pts, 5))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, until: ${UNTIL} });   // traffic across open water`, 'craft container_ship (ambient)', ts(a));
+        item(`sprite('container_ship', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pick(pts, 5))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // traffic across open water`, 'craft container_ship (ambient)', ts(a));
         report.ambient = (report.ambient || 0) + 1; return; } } }
   report.notes.push(`السطر ${li + 1}: لقطة قريبة بلا ممر بحري ولا ماء مفتوح، لا حياة ممكنة بالمكتبة الحالية (نماذج البر في المرحلة ج).`);
 }
@@ -214,7 +237,7 @@ LINES.forEach(([a, b], li) => {
   const route = p.lane ? ROUTE(p.lane) : null; lineMode = null; const out0 = out.length;
   const fx = p.fx || null;
   // ---- the frame of the line
-  let F = null, why = '';
+  let F = null, why = ''; camIn = li === 0 ? 2.2 : L0;
   const planC = (p.countries || []).map(c => WORLD.countries.find(x => x.a3 === c)).filter(Boolean);
   if (fx === 'تتبع' && route) {   // the whole route, with the place it leaves and the country that holds it (Qatar + its LNG lane)
     let bb = boxOf(route.pts); if (main) bb = merge(bb, [main.p.pt[0], main.p.pt[1], main.p.pt[0], main.p.pt[1]]);
@@ -227,7 +250,7 @@ LINES.forEach(([a, b], li) => {
     F = { lon: G.lon, lat: G.lat, span: r2(Math.max(main.p.span * 4, Math.min(G.span * .8, 26))) }; why = (main.k || main.p.ar) + ' + ' + cs.map(c => c.a3).join('+');
   } else if (ctrs.length >= 3 && !['تتبع', 'مقارنة'].includes(fx)) {   // a list of countries is a wide satellite shot that holds them all, even when the line ends on a place
     let bb = ctrs.map(e => e.c.bb).reduce(merge); if (main) bb = merge(bb, [main.p.pt[0], main.p.pt[1], main.p.pt[0], main.p.pt[1]]);
-    F = frame(bb, 2.4); F.span = r2(Math.min(40, F.span)); why = 'list ' + ctrs.map(e => e.c.a3).join('+');
+    F = frame(bb, 2.4); F.span = r2(Math.min(40, F.span * 1.18)); why = 'list ' + ctrs.map(e => e.c.a3).join('+');
   } else if (main) {
     const pts = [main.p.pt, ...places.filter(e => e.k !== main.k).map(e => e.p.pt)];
     F = pts.length > 1 ? frame(boxOf(pts), main.p.span * 1.6) : { lon: r3(main.p.pt[0]), lat: r3(main.p.pt[1]), span: r2(main.p.span * 1.6) };
@@ -242,6 +265,7 @@ LINES.forEach(([a, b], li) => {
     F = frame(bb, 2.4); why = cs.map(c => c.a3).join('+');
     if (fx === 'ابتعاد') F.span = r2(Math.min(95, F.span * 1.25));
   } else if (route) { F = frame(boxOf(route.pts), 2); why = 'the route'; }
+  if (F && route && route.kind === 'pipe') { F = frame(merge(boxOf(route.pts), [F.lon - F.span * .3, F.lat - F.span * .3, F.lon + F.span * .3, F.lat + F.span * .3]), F.span); F.span = r2(F.span * 1.15); why += ' + both ends of the pipeline'; }   // root fix 6
   if (!F && prev) { F = { ...prev, span: r2(prev.span * .9) }; why = 'slow push'; }
   if (F) {
     // where it arrives: early in the line, after its first named thing at the latest; big moves get more time
@@ -254,7 +278,7 @@ LINES.forEach(([a, b], li) => {
     const hop = li > 0 && prev && dist > 3 * Math.min(prev.span, F.span) && dist > Math.max(prev.span, F.span) * .6;   // (a wider frame that holds both is a pull-out, not a hop)
     if (hop) { const td = te(LINES[li - 1][1]); arrive = Math.min(Math.max(L0 + 1.7, td + 1.9), Math.max(L1 - .3, L0 + .8)); }
     const kAt = t => { let best = 0; for (let i = 0; i < WORDS.length; i++) if (ts(i) <= t) best = i; return best; };
-    const k2 = kAt(arrive), at = li === 0 ? '0' : A(k2, false, arrive - ts(k2));
+    const k2 = kAt(arrive), at = li === 0 ? '0' : A(k2, false, arrive - ts(k2)); if (li > 0) camIn = arrive;
     if (!firstShot) firstShot = { F: { ...F }, li, key: cams.length };
     // phase 4: the drone move of the line, from the kind of place it shows
     if (hop) { ph = 0; pmode = null; }   // the hop passes through the satellite (north up): the next drone move starts from there
@@ -297,13 +321,15 @@ LINES.forEach(([a, b], li) => {
   // ---- countries: spoken ones only, two flags at most per line, the rest in colour
   let flags = 0, col = 0;
   for (const e of ctrs) {
-    const fl = !!ISO2[e.c.iso] && flags < 2 && fx !== 'خطر'; if (fl) flags++; use('region');
+    const fl = !!ISO2[e.c.iso] && flags < 2 && fx !== 'خطر' && flagFits(F, e.c.bb); if (fl) flags++; use('region');
     const style = fx === 'خطر' || (red && e === ctrs[0]) ? `style: 'danger', label: '${CNAME(e.c)}'` : fl ? `flag: true, label: '${CNAME(e.c)}'` : `style: 'vivid', color: '${COLS[col++ % COLS.length]}', opacity: .5, label: '${CNAME(e.c)}'`;
     const fb = F ? [F.lon - F.span * .6 / kx(F.lat), F.lat - F.span * .95, F.lon + F.span * .6 / kx(F.lat), F.lat + F.span * .95] : null, bb = e.c.bb;
     const outside = fb && (e.c.lx < fb[0] || e.c.lx > fb[2] || e.c.ly < fb[1] || e.c.ly > fb[3]) && (bb[2] - bb[0] > (fb[2] - fb[0]) * 2 || bb[2] < fb[0] || bb[0] > fb[2] || bb[3] < fb[1] || bb[1] > fb[3]);
     if (outside && main && !main.new && ISO2[e.c.iso]) { flags--; use('flagPin', 'spot'); item(`flagPin('${e.c.a3}', spot('${main.k}'), { at: ${A(e.i)}, in: '${main.p.in}', say: '${clean(WORDS[e.i][0])}', until: ${UNTIL} });`, `country ${e.c.a3}`, ts(e.i)); continue; }
     if (outside) { report.notes.push(`السطر ${li + 1}: ${CNAME(e.c)} خارج الإطار، لم تُلوَّن.`); continue; }
-    item(`region('${e.c.a3}', { at: ${A(e.i)}, ${style}, labelPill: '#111a2b', say: '${clean(WORDS[e.i][0])}', until: ${UNTIL} });`, `country ${e.c.a3}`, ts(e.i));
+    const altS = `style: 'vivid', color: '${COLS[col % COLS.length]}', opacity: .5, label: '${CNAME(e.c)}'`;
+    item(`region('${e.c.a3}', { at: ${A(e.i)}, ${style}, labelPill: '#111a2b', say: '${clean(WORDS[e.i][0])}', until: ${UNTIL} });`, `country ${e.c.a3}${fl ? ' flag' : ''}`, ts(e.i),
+      fl ? `region('${e.c.a3}', { at: ${A(e.i)}, ${altS}, labelPill: '#111a2b', say: '${clean(WORDS[e.i][0])}', until: ${UNTIL} });` : null);
   }
   // ---- places: a label for every named place, alternately above and below so two never stack
   places.forEach((e, k) => { use('label', 'spot');
@@ -313,20 +339,28 @@ LINES.forEach(([a, b], li) => {
   // ---- the route and what moves on it
   if (route) { use('path', route.kind === 'lane' ? 'lane' : 'pipeline'); const at = A(main && places.length ? places[0].i : a, false, main && places.length ? 0 : .2);
     item(route.kind === 'lane' ? `path(${route.call}, { at: ${at}, dur: 1.2, color: '${red ? '#ff4757' : '#4fd2ff'}', width: 8, sea: true, until: ${UNTIL} });`
-      : `path(${route.call}, { at: ${at}, dur: 1.2, color: '#ffd23f', width: 12, until: ${UNTIL} });`, `route ${p.lane}`); }
+      : `path(${route.call}, { at: ${at}, dur: 1.2, color: '#ffd23f', width: 12, until: ${UNTIL} });`, `route ${p.lane}`);
+    if (route.kind === 'pipe') for (const [end, dy] of [[route.pts[0], 110], [route.pts[route.pts.length - 1], -110]]) {   // root fix 6: each end of a pipeline is named
+      if (places.some(e => hav(e.p.pt, end) < 45)) continue; let bk = null;
+      for (const [k2, v] of Object.entries(PL.places)) { const d = hav(v.pt, end); if (d < 45 && (!bk || d < bk.d)) bk = { k: k2, v, d }; }
+      if (bk) { use('label', 'spot'); item(`label(spot('${bk.k}'), '${bk.v.ar}', { at: ${at}, pill: '#111a2b', color: '#ffd23f', until: ${UNTIL}, anim: 'bubble'${bk.v.off_map ? '' : `, in: '${bk.v.in}'`}, lead: [0, ${dy}] });`, `place ${bk.k} (pipeline end)`, L0); }
+      else report.notes.push(`السطر ${li + 1}: طرف الأنبوب ${end} بلا مكان مسمى في places.json؛ أضفه.`); } }
   if (p.craft) {
     const c = p.craft, K = CRAFT[c];
     if (!TOPS.has(c)) report.notes.push(`السطر ${li + 1}: المجسم ${c} بلا منظر علوي، يلزم لوحة ChatGPT؛ لم يُرسم.`);
     else if (K && K.m === 'sea' && route && route.kind === 'lane') { use('sprite', 'lane'); const dur = Math.max(4, L1 - L0 + 1.2);
       const n = /ملايين|مليون|يوم|كل/.test(words.join(' ')) && c === 'tanker' ? 4 : 1;
-      for (let s = 0; s < n; s++) item(`sprite('${c}', null, { at: ${A(a)}, early: 0, along: ${route.call}, ${n > 1 ? `speed: ${r3(.9 / dur / 3)}, phase: ${r2(s / n + .05)}` : `travel: ${r2(dur * 1.6)}`}${s ? ', sfx: false' : ''}, until: ${UNTIL} });`, `craft ${c}`, L0); }
+      const IR = F && n === 1 ? inFrameRun(F, route.pts) : null, alongS = IR ? JSON.stringify(pick(IR, 9)) : route.call;
+      for (let s = 0; s < n; s++) item(`sprite('${c}', null, { at: ${li === 0 ? r2(camIn - .4) : A(a)}, early: 0, along: ${alongS}, ${n > 1 ? `speed: ${r3(.9 / dur / 3)}, phase: ${r2(s / n + .05)}` : `travel: ${r2(dur * 1.6)}`}${s ? ', sfx: false' : ''}, until: ${UNTIL} });`, `craft ${c}`, L0); }
     else if (K && K.m === 'air' && main && fx === 'ضربة') { use('sprite'); const [x, y] = main.p.pt, d = Math.max(.6, (F ? F.span : 2) * .35);
       item(`sprite('${c}', [${r3(x + d)}, ${r3(y + d * .7)}], { to: [${r3(x)}, ${r3(y)}], at: ${A(a)}, travel: ${r2(Math.min(2.2, Math.max(1.2, (L1 - L0) * .4)))}, hit: { explode: true, shake: true }, until: ${UNTIL} });`, `craft ${c}`, L0); }
     else if (K && K.m === 'air' && main && !main.new) { use('icon', 'spot'); const d = ents.find(e => e.kind === 'danger');
       item(`icon(spot('${main.k}'), 'x', { at: ${d ? A(d.i, false, -.2) : A(a, false, .3)}, size: 2.0, color: 'red', until: ${UNTIL} });`, 'danger sign', d ? ts(d.i) : L0); }
     else if (K && K.m === 'sea' && main && seaApproach(main.p.pt, F ? F.span : 1.5)) { use('sprite'); const R = seaApproach(main.p.pt, F ? F.span : 1.5), dur = Math.max(4, L1 - L0 + 1);
       item(`sprite('${c}', null, { at: ${A(a)}, early: 0, along: ${JSON.stringify(R)}, travel: ${r2((L1 - L0) * .9)}, until: ${UNTIL} });   // an approach through open water, at the berth before the line ends`, `craft ${c}`, L0);
-      if (c === 'carrier' && TOPS.has('destroyer')) item(`sprite('destroyer', null, { at: ${A(a, false, .6)}, early: 0, along: ${JSON.stringify(R)}, travel: ${r2((L1 - L0) * .9)}, sfx: false, until: ${UNTIL} });   // its escort, behind it`, 'craft destroyer', L0); }
+      if (c === 'carrier' && TOPS.has('destroyer')) {   // root fix 1: the escort sails beside the carrier on its own parallel track (at sea), never on top of it
+        const sp = F ? F.span : 1.5, E = [.3, -.3, .38, -.38, .24, -.24].map(o2 => offsetLine(R, sp * o2)).find(q => q.every(w => !onLand(w)));
+        if (E) item(`sprite('destroyer', null, { at: ${r2(Math.max(camIn, L0) + .3)}, early: 0, along: ${JSON.stringify(E.map(q => [r3(q[0]), r3(q[1])]))}, travel: ${r2((L1 - L0) * .9)}, sfx: false, until: ${UNTIL} });   // its escort, on a parallel track`, 'craft destroyer', L0); } }
     else report.notes.push(`السطر ${li + 1}: المجسم ${c} يحتاج مساراً معروفاً (بحرياً للسفن) أو مكاناً؛ لم يُرسم.`);
   }
   // ---- objects the words name (2.2): a still one stands on the line's place, a moving one runs along the place's lane
@@ -342,7 +376,8 @@ LINES.forEach(([a, b], li) => {
   }
   // ---- living map phase A: no dead shot. A close shot (drone or narrower than 6.5 deg) with water and nothing moving gets the
   // traffic of the sea lanes that cross it (or a ship across open water), smaller than the story's own objects and silent.
-  if (F && (F.span <= 6.5 || lineMode) && !out.slice(out0).some(x => /^sprite\('[a-z_]+', [\s\S]*?(along|to):/.test(x))) ambient(F, li, a, b, UNTIL, p.craft);
+  const loopLine = li === LINES.length - 1 && (PLAN[0] || {}).craft && (PLAN[0] || {}).lane;
+  if (F && !loopLine && (F.span <= 6.5 || lineMode) && !out.slice(out0).some(x => /^sprite\('[a-z_]+', [\s\S]*?(along|to):/.test(x))) ambient(F, li, a, b, UNTIL, p.craft);
   // ---- numbers: one at a time at the top, each until the next one
   const ends = k => [[k, PL.places[k].pt], ...Object.entries(PL.places).filter(([q, v]) => q.startsWith(k + '_') && v.kind === 'point').map(([q, v]) => [q, v.pt])];
   nums.forEach(e => { if (e.fmt !== '# كم' || places.length < 2) return; let best = null;
