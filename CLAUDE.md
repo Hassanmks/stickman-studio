@@ -2,7 +2,7 @@
 
 **Language (strict user rule, 2026-11-16, re-stated 2026-11-17 as absolute):** everything the user sees is in Modern Standard Arabic (فصحى), always and without exception: replies, every progress note between tool calls, task-list items, tool-call descriptions, wrap_up and questions. Never English, never dialect. Only code, commands and paths stay as they are.
 
-**START HERE:** read `PROJECT_STATE.md` first. It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
+**START HERE:** read `PROJECT_STATE.md` first (its section «🎬 بروتوكول «أكمل» التالي» is the next «أكمل»: 5 topics -> full film -> phone delivery via host job -> safe shutdown). It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
 
 ## Documentary charter (STRICT, signed 2026-11-18, never revoked): read `DOCUMENTARY_STANDARD.md` before every film
 Every film is a living documentary: every spoken event moves on the map (armies, tanks, vehicles, soldiers, boats, aircraft, arrows, fronts, explosions), every missing sprite is made with ChatGPT sheets (in parallel with the voice) before the render, flags always wave (a waving flag pin when the region flag cannot fit), real terrain/forests/detail, and a sound effect for every visual event. A request for speed NEVER removes any of it: speed comes from parallel work only.
