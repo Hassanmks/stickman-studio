@@ -2,6 +2,8 @@
 
 **Language (strict user rule, 2026-11-16, re-stated 2026-11-17 as absolute):** everything the user sees is in Modern Standard Arabic (فصحى), always and without exception: replies, every progress note between tool calls, task-list items, tool-call descriptions, wrap_up and questions. Never English, never dialect. Only code, commands and paths stay as they are.
 
+**No API, ever (STRICT user rule, 2026-11-18, absolute, no exception):** never use any AI service through an API or an API key (Gemini API, Gemini TTS API, image-model APIs, OpenAI, ElevenLabs API, Anthropic API key), in the app, on the PC or on GitHub. Script, voice and sprite sheets come only from the websites/apps with the user's own account (Gemini, AI Studio's speech page, ChatGPT chat), done by the user on the phone or by Claude through the user's browser (Claude in Chrome). Claude Code runs on the user's subscription login. The phone <-> own host link is not an API in this sense. Plan: `TALESPARK_3_PLAN.md` section 0.
+
 **START HERE:** read `PROJECT_STATE.md` first (its section «🎬 بروتوكول «أكمل» التالي» is the next «أكمل»: 5 topics -> full film -> phone delivery via host job -> safe shutdown). It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
 
 ## Documentary charter (STRICT, signed 2026-11-18, never revoked): read `DOCUMENTARY_STANDARD.md` before every film
