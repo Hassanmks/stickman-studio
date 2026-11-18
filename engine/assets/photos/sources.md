@@ -4,3 +4,4 @@
 
 الترخيص: الصور الثلاث ملكية عامة (Public domain) حسب صفحاتها على ويكيميديا كومنز: بريم من ناسا، وكارني والقاعدة من الجيش الأمريكي (DVIDS). لا يلزم ذكر المصدر.
 ملاحظة: الصورتان الجويتان لمطار جيبوتي على كومنز مرخّصتان بـ CC BY-SA وGFDL، فلم تُستعملا.
+- صورة حقيقية (Rumeli Hisarı) → rumeli_hisari.png: https://commons.wikimedia.org/wiki/File:Twierdza_Rumeli_Istambu%C5%82_RB1.jpg

@@ -1441,11 +1441,17 @@ const CRAFT = {
   fishing_boat: { m: 'sea', len: 25, v: 18 }, ferry: { m: 'sea', len: 180, v: 40 }, cruise_ship: { m: 'sea', len: 330, v: 40 }, icebreaker: { m: 'sea', len: 150, v: 28 },
   airliner: { m: 'air', len: 70, v: 850 }, cargo_plane: { m: 'air', len: 50, v: 600 }, bomber: { m: 'air', len: 50, v: 900 },
   truck: { m: 'land', len: 18, v: 80 }, train: { m: 'land', len: 600, v: 120 },
+  // 2026-11-18 medieval (siege of Constantinople 1453): galley ~40 m (kadirga), carrack ~30 m; troops and the bombard are a symbol of a unit
+  galley: { m: 'sea', len: 40, v: 10 }, carrack: { m: 'sea', len: 30, v: 8 }, galley_hauled: { m: 'land', len: 40, v: 2 },
+  janissaries: { m: 'land', len: 20, v: 5 }, defenders: { m: 'land', len: 20, v: 4 }, cavalry: { m: 'land', len: 20, v: 15 }, bombard: { m: 'land', len: 25, v: 2 },
+  stone_ball: { m: 'air', len: .7, v: 400 },
 };
+// medieval units read as blocks on the map: their own symbolic size (the order still follows len: galley > carrack > troops)
+const OWNREL = { galley: .62, galley_hauled: .62, carrack: .55, janissaries: .42, defenders: .42, cavalry: .42, bombard: .5, stone_ball: .2 };
 // length on screen relative to the biggest ship. A true scale would make everything one pixel, so it is symbolic, but it
 // keeps the real order (compressed): container ship 1, tanker .96, destroyer .73, dhow .38; aircraft and missiles below the ships.
 const AIRREL = { fighter_jet: .5, helicopter: .46, missile: .4, drone: .36, airliner: .62, cargo_plane: .58, bomber: .56 };
-const REL = n => { const k = CRAFT[n]; return !k ? 1 : k.m === 'air' ? AIRREL[n] : k.m === 'land' ? (n === 'train' ? .7 : .34) : Math.pow(k.len / 366, .36); };
+const REL = n => { const k = CRAFT[n]; return !k ? 1 : OWNREL[n] ? OWNREL[n] : k.m === 'air' ? AIRREL[n] : k.m === 'land' ? (n === 'train' ? .7 : .34) : Math.pow(k.len / 366, .36); };
 // the size follows the camera: bigger (symbolic) far away, never a giant next to a narrow strait. Length in px of a REL 1 ship.
 const sizeCurve = span => clamp(170 * Math.pow(span, -.22), 84, 170);
 const SUN = [.55, .83];                                   // one sun: every cast shadow falls this way on the screen
@@ -1615,11 +1621,29 @@ export function sprite(name, pos, o = {}) {
     it.t1 = at; it.outDur = .06; it.hitT = at;
     if (tgt && h.burn !== false) { tgt.burnT = Math.min(tgt.burnT ?? 1e9, at); tgt.stopT = Math.min(tgt.stopT ?? 1e9, at); }
     if (h.explode !== false) sprite('explosion', where, { at, early: 0, size: () => clamp(tgt && tgt.Lnow ? tgt.Lnow * 1.6 : 190, 150, 300) * (h.size || 1), until: at + (h.dur || .95), cause: it, sfx: h.sfx, z: 7 });
-    if (h.smoke !== false) smoke(where, { at: at + .15, size: h.plume || 1, until: h.until, cause: it });
+    if (h.smoke !== false) smoke(where, { at: at + .15, size: h.plume || 1, until: h.until ?? at + 4, cause: it });   // 2026-11-18: a hit's fire dies out (it hung over the rest of the 1453 film); give a later until to keep it burning
     if (h.shake !== false) shake(at, { amt: h.shake || 1.3 });
     if (h.flash !== false) flash(at, h.flash || .28);
   }
   return it;
+}
+// banner('ottoman'|'byzantine', sprite | [lon,lat], {at, until, size, dy}) (2026-11-18, documentary charter 11-12): the war banner of a side
+// rides on its army (pole + cloth waving like drawFlag). Historic banners are not country flags: they live in assets/flags/hist/<name>.svg.
+const HIST = { ottoman: 1, byzantine: 1 };
+export function banner(name, on, o = {}) {
+  if (!HIST[name]) throw new Error('banner: no historic banner ' + name);
+  const e = asset('/assets/flags/hist/' + name + '.svg');
+  return add({ kind: 'banner', name: 'banner', t0: when(o.at ?? (on && on.t0 != null ? on.t0 : 0)), t1: o.until != null ? when(o.until) : (on && on.t1 != null ? on.t1 : null), dur: .45, z: o.z ?? 6.6, sfx: false,
+    draw(t) {
+      const [a, b] = life(this, t); if (a <= 0 || b <= 0 || !e.img) return; const gp = on && on.geoPos ? on.geoPos(t) : on; if (!gp) return;
+      const [x, y, f] = P(gp[0], gp[1]); if (!f) return; if (on && on.draw && on.t0 != null && t < on.t0) return;
+      const s = (o.size || 1) * EASE.back(a), pw = 92 * s, ph = 66 * s, top = y - (o.dy ?? 70) * s - ph;
+      X.save(); X.globalAlpha = clamp(a * 2) * b * orbitVis();
+      X.strokeStyle = '#3b2a1a'; X.lineWidth = 5 * s; X.lineCap = 'round'; X.shadowColor = 'rgba(0,0,0,.5)'; X.shadowBlur = 8; X.beginPath(); X.moveTo(x, y - 6 * s); X.lineTo(x, top - 8 * s); X.stroke(); X.shadowBlur = 0;
+      X.fillStyle = '#e8c35a'; X.beginPath(); X.arc(x, top - 10 * s, 5.5 * s, 0, 7); X.fill();
+      X.save(); X.beginPath(); X.rect(x + 2 * s, top - ph * .2, pw * 1.2, ph * 1.4); X.clip(); drawFlag(e, [x + 2 * s, top, x + 2 * s + pw * .9, top + ph * .9], t + (o.phase || 0), true); X.restore();
+      X.restore();
+    } });
 }
 // A4 photo('uss_carney', {at, until, frame:'full'|'hex'|'circle'|'card', pt:[lon,lat] (leader line), x, y, size, kenburns, grain, caption})
 // full: wipes in over the whole frame in the reading direction, slow Ken Burns push, film grain, then hands back to the map

@@ -1,0 +1,14 @@
+{
+ "name": "constantinople-1453",
+ "lang": "ar",
+ "engine": "file",
+ "rate": "+4%",
+ "maxGap": 0.16,
+ "lead": 0.15,
+ "fps": 120,
+ "workers": 4,
+ "lufs": -14,
+ "true_peak": -1.5,
+ "pauses": "punct",
+ "year": 1453
+}

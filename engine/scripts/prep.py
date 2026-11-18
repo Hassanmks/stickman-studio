@@ -11,6 +11,7 @@ Imagery: EOxCloudless 2016 (https://cloudless.eox.at) by EOX IT Services GmbH, c
 data 2016, licensed CC BY 4.0. Put the credit in the video description (build.py prints it). Later years of this
 layer are non-commercial, so the skill only uses 2016.
 """
+import sys
 import json, math, os, subprocess, sys, time, urllib.request, io, shutil
 from pathlib import Path
 from PIL import Image
@@ -221,9 +222,13 @@ def patches(proj):
             print(f"patch {i}: t={p['t']}s  bbox {p['bb']}  {p['w']}x{p['h']} px  ({p['d']} px/rad)", flush=True)
             tmp = key.with_suffix('.part.jpg'); get(p['bb'], p['w'], p['h']).save(tmp, quality=92); tmp.replace(key)
         else: print(f'patch {i}: from the shared cache', flush=True)
-        shutil.copyfile(key, img / name)
     t0 = time.time()
     with ThreadPoolExecutor(6) as ex: list(ex.map(fetch, todo))
+    # PARALLEL_PIPELINE section 4 (2026-11-18): every new patch is mended from NASA Blue Marble right after its download (no cloud strips)
+    try:
+        sys.path.insert(0, str(Path(__file__).parent)); import globe_fix; globe_fix.mend_all([k for _, _, _, k in todo])
+    except Exception as e: print('globe_fix skipped:', e)
+    for _, _, name, key in todo: shutil.copyfile(key, img / name)
     if todo: print(f'{len(todo)} patches ready in {time.time() - t0:.1f} s')
     keep = {o['src'] for o in out}
     for f in img.glob('p*.jpg'):

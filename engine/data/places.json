@@ -932,6 +932,149 @@
    "kind": "city",
    "span": 0.8,
    "src": "Ismailia city centre, Wikipedia/GeoNames 30.6043 N 32.2723 E"
+  },
+  "CONSTANTINOPLE": {
+   "ar": "القسطنطينية",
+   "en": "Constantinople",
+   "aka": [
+    "القسطنطينيه",
+    "إسطنبول"
+   ],
+   "pt": [
+    28.968,
+    41.013
+   ],
+   "in": "TUR",
+   "kind": "capital",
+   "span": 0.32,
+   "src": "historic peninsula (Fatih), between the Theodosian walls and Hagia Sophia"
+  },
+  "HAGIA_SOPHIA": {
+   "ar": "آيا صوفيا",
+   "en": "Hagia Sophia",
+   "pt": [
+    28.9801,
+    41.0086
+   ],
+   "in": "TUR",
+   "kind": "point",
+   "span": 0.08,
+   "src": "OSM/Wikipedia coordinates of the monument (checked on the satellite picture in look)"
+  },
+  "THEODOSIAN_WALLS": {
+   "ar": "الأسوار البرية",
+   "en": "Theodosian Walls",
+   "aka": [
+    "السور",
+    "الأسوار"
+   ],
+   "pt": [
+    28.9235,
+    41.0175
+   ],
+   "in": "TUR",
+   "kind": "point",
+   "span": 0.12,
+   "src": "middle of the land walls near Topkapi/Mevlanakapi"
+  },
+  "ST_ROMANUS_GATE": {
+   "ar": "بوابة القديس رومانوس",
+   "en": "Gate of St Romanus (Topkapi)",
+   "pt": [
+    28.9208,
+    41.0197
+   ],
+   "in": "TUR",
+   "kind": "point",
+   "span": 0.08,
+   "src": "OSM/Wikipedia coordinates of the monument (checked on the satellite picture in look)"
+  },
+  "RUMELI_HISARI": {
+   "ar": "قلعة روملي حصار",
+   "en": "Rumelihisari",
+   "aka": [
+    "روملي حصار",
+    "رومَلي حِصار"
+   ],
+   "pt": [
+    29.0563,
+    41.0847
+   ],
+   "in": "TUR",
+   "kind": "base",
+   "span": 0.12,
+   "src": "OSM/Wikipedia coordinates of the monument (checked on the satellite picture in look)"
+  },
+  "GALATA": {
+   "ar": "غلطة",
+   "en": "Galata",
+   "aka": [
+    "غَلَطة",
+    "غلطه"
+   ],
+   "pt": [
+    28.9741,
+    41.0256
+   ],
+   "in": "TUR",
+   "kind": "city",
+   "span": 0.1,
+   "src": "Galata Tower"
+  },
+  "GOLDEN_HORN": {
+   "ar": "القرن الذهبي",
+   "en": "Golden Horn",
+   "aka": [
+    "القرن الذهبي"
+   ],
+   "pt": [
+    28.968,
+    41.028
+   ],
+   "in": "sea",
+   "kind": "strait",
+   "span": 0.12,
+   "src": "inner harbour opposite Kasimpasa (the 1:10m borders draw it as land: Bosporus canal box)"
+  },
+  "DOUBLE_COLUMNS": {
+   "ar": "ديبلوكيونيون",
+   "en": "Double Columns (Besiktas)",
+   "pt": [
+    29.0035,
+    41.0405
+   ],
+   "in": "sea",
+   "kind": "port",
+   "span": 0.1,
+   "src": "Diplokionion, the Ottoman fleet anchorage at Besiktas/Dolmabahce, start of the overland road"
+  },
+  "EDIRNE": {
+   "ar": "أدرنة",
+   "en": "Edirne",
+   "aka": [
+    "أَدِرْنة",
+    "ادرنه"
+   ],
+   "pt": [
+    26.5557,
+    41.6771
+   ],
+   "in": "TUR",
+   "kind": "capital",
+   "span": 0.6,
+   "src": "Ottoman capital in 1453 (Selimiye area)"
+  },
+  "BLACK_SEA_MOUTH": {
+   "ar": "البحر الأسود",
+   "en": "Black Sea entrance of the Bosporus",
+   "pt": [
+    29.13,
+    41.24
+   ],
+   "in": "sea",
+   "kind": "point",
+   "span": 0.5,
+   "src": "north entrance of the Bosporus"
   }
  },
  "lanes": {
@@ -1654,6 +1797,124 @@
      18.9
     ]
    ]
+  },
+  "BOSPORUS_SOUTH": {
+   "ar": "البوسفور من البحر الأسود إلى القرن الذهبي",
+   "pts": [
+    [
+     29.135,
+     41.235
+    ],
+    [
+     29.105,
+     41.2
+    ],
+    [
+     29.075,
+     41.17
+    ],
+    [
+     29.06,
+     41.14
+    ],
+    [
+     29.07,
+     41.115
+    ],
+    [
+     29.062,
+     41.09
+    ],
+    [
+     29.058,
+     41.083
+    ],
+    [
+     29.05,
+     41.07
+    ],
+    [
+     29.032,
+     41.052
+    ],
+    [
+     29.012,
+     41.04
+    ],
+    [
+     29.0,
+     41.024
+    ],
+    [
+     28.988,
+     41.016
+    ],
+    [
+     28.978,
+     41.019
+    ]
+   ],
+   "src": "mid-channel of the Bosporus (inside the engine canal box)"
+  },
+  "GOLDEN_HORN_IN": {
+   "ar": "داخل القرن الذهبي",
+   "pts": [
+    [
+     28.9625,
+     41.0335
+    ],
+    [
+     28.958,
+     41.0352
+    ],
+    [
+     28.952,
+     41.0378
+    ],
+    [
+     28.946,
+     41.0408
+    ],
+    [
+     28.94,
+     41.0435
+    ],
+    [
+     28.934,
+     41.047
+    ]
+   ],
+   "src": "inner Golden Horn from Kasimpasa toward Ayvansaray"
+  },
+  "MARMARA_FLEET": {
+   "ar": "الأسطول في بحر مرمرة",
+   "pts": [
+    [
+     28.6,
+     40.88
+    ],
+    [
+     28.8,
+     40.93
+    ],
+    [
+     28.93,
+     40.965
+    ],
+    [
+     28.985,
+     40.995
+    ],
+    [
+     29.0,
+     41.02
+    ],
+    [
+     29.004,
+     41.038
+    ]
+   ],
+   "src": "from the Sea of Marmara round Seraglio Point to the Double Columns"
   }
  },
  "pipelines": {
@@ -1704,6 +1965,112 @@
      25.15
     ]
    ]
+  },
+  "THEODOSIAN_LINE": {
+   "ar": "الأسوار البرية",
+   "pts": [
+    [
+     28.9228,
+     40.9934
+    ],
+    [
+     28.9255,
+     40.9985
+    ],
+    [
+     28.924,
+     41.0068
+    ],
+    [
+     28.9213,
+     41.0148
+    ],
+    [
+     28.9208,
+     41.0197
+    ],
+    [
+     28.9275,
+     41.0255
+    ],
+    [
+     28.9339,
+     41.0306
+    ],
+    [
+     28.9408,
+     41.0343
+    ],
+    [
+     28.946,
+     41.042
+    ]
+   ],
+   "src": "Theodosian land walls from Yedikule (Marmara) to Ayvansaray (Golden Horn)"
+  },
+  "OVERLAND_ROAD": {
+   "ar": "طريق السفن فوق غلطة",
+   "pts": [
+    [
+     28.999,
+     41.0418
+    ],
+    [
+     28.995,
+     41.0415
+    ],
+    [
+     28.987,
+     41.0385
+    ],
+    [
+     28.979,
+     41.0375
+    ],
+    [
+     28.971,
+     41.0368
+    ],
+    [
+     28.9625,
+     41.0335
+    ]
+   ],
+   "src": "Diplokionion (Besiktas) up the Dolmabahce valley, over the Taksim ridge and down the Kasimpasa valley into the Golden Horn (Ostrogorsky; popular accounts)"
+  },
+  "EDIRNE_ROAD": {
+   "ar": "الطريق من أدرنة إلى القسطنطينية",
+   "pts": [
+    [
+     26.5557,
+     41.6771
+    ],
+    [
+     27.093,
+     41.433
+    ],
+    [
+     27.355,
+     41.403
+    ],
+    [
+     27.8,
+     41.159
+    ],
+    [
+     28.25,
+     41.1
+    ],
+    [
+     28.58,
+     41.06
+    ],
+    [
+     28.905,
+     41.02
+    ]
+   ],
+   "src": "the old road Edirne - Babaeski - Luleburgaz - Corlu - Silivri - Buyukcekmece - the walls"
   }
  }
 }

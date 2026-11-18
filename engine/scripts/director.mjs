@@ -171,7 +171,9 @@ function ambient(F, li, a, b, UNTIL, craft) {
       let ic = 0; best.forEach((q, i) => { if (hav(q, [F.lon, F.lat]) < hav(best[ic], [F.lon, F.lat])) ic = i; });
       const fw = best.slice(Math.max(0, ic - Math.round(best.length * .18))), bw = best.slice(0, Math.min(best.length, ic + Math.round(best.length * .18) + 1)).reverse();
       runs.push({ k, pts: fw.length >= bw.length ? fw : bw }); } }
-  const kind = craft && (CRAFT[craft] || {}).m === 'sea' && TOPS.has(craft) ? craft : 'tanker', dur = Math.max(4, te(b) - ts(a) + 1.2);
+  // logic of the film's year (2026-11-18): before the steam age the background traffic is period craft (galleys, carracks), never a tanker
+  const OLD = CFGJ.year && CFGJ.year < 1850, MOD = OLD ? 'galley' : 'tanker', MOD2 = OLD ? 'carrack' : 'container_ship';
+  const kind = craft && (CRAFT[craft] || {}).m === 'sea' && TOPS.has(craft) ? craft : MOD, dur = Math.max(4, te(b) - ts(a) + 1.2);
   runs.sort((x, y) => y.pts.length - x.pts.length); const use2 = [];
   // root fix 1: two lanes are «the same water» when their MEAN distance is small (not only their middles)
   const meanD = (P1, P2) => P1.reduce((s2, q) => s2 + Math.min(...P2.map(w => hav(q, w))), 0) / P1.length;
@@ -179,7 +181,7 @@ function ambient(F, li, a, b, UNTIL, craft) {
   if (use2.length) { use('sprite'); const r = use2[0], pts = pick(r.pts, 9);
     item(`sprite('${kind}', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pts)}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // traffic on ${r.k}`, `craft ${kind} (ambient)`, ts(a));
     // the second ship sails the OTHER way on a parallel lane, offset sideways far enough to never touch the first, and only at sea
-    const K2 = kind === 'tanker' ? 'container_ship' : 'tanker', back = [...r.pts].reverse(); let two = null;
+    const K2 = kind === MOD ? MOD2 : MOD, back = [...r.pts].reverse(); let two = null;
     for (const off of [.34, -.34, .42, -.42, .28, -.28]) { const q = offsetLine(back, F.span * off); if (q.every(w => !onLand(w)) && q.filter(w => inB(w, .95)).length >= q.length * .5) { two = q; break; } }
     if (two) item(`sprite('${K2}', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pick(two, 9))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // two-way traffic: the opposite lane of ${r.k}`, `craft ${K2} (ambient)`, ts(a));
     else { const run = r.pts, cum = [0]; for (let q = 1; q < run.length; q++) cum.push(cum[q - 1] + hav(run[q - 1], run[q]));   // one-way convoy: a constant gap of ~0.4 frame
@@ -192,7 +194,7 @@ function ambient(F, li, a, b, UNTIL, craft) {
     for (const off of [0, .3, -.3]) { const c = [F.lon - Math.cos(h) * hw * off, F.lat + Math.sin(h) * hh * off * .5];
       const pts = Array.from({ length: 13 }, (_, i) => [r3(c[0] - dx + 2 * dx * i / 12), r3(c[1] - dy + 2 * dy * i / 12)]);
       if (pts.every(q => !onLand(q))) { use('sprite');
-        item(`sprite('container_ship', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pick(pts, 5))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // traffic across open water`, 'craft container_ship (ambient)', ts(a));
+        item(`sprite('${MOD2}', null, { at: ${AMB()}, early: 0, along: ${JSON.stringify(pick(pts, 5))}, travel: ${r2(dur * 1.7)}, scale: .85, sfx: false, ambient: true, until: ${UNTIL} });   // traffic across open water`, `craft ${MOD2} (ambient)`, ts(a));
         report.ambient = (report.ambient || 0) + 1; return; } } }
   report.notes.push(`السطر ${li + 1}: لقطة قريبة بلا ممر بحري ولا ماء مفتوح، لا حياة ممكنة بالمكتبة الحالية (نماذج البر في المرحلة ج).`);
 }

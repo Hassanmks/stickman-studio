@@ -44,6 +44,13 @@ KIT = {
     'flap':    ['gen/flap.wav'],      # a flag inside the borders
     'horn':    ['gen/horn.wav'],      # a big ship arrives
     'missile': ['gen/missile.wav'],   # a missile / drone flies in
+    # 2026-11-18 medieval battle kit (engine/scripts/make_sfx_medieval.py, our own synthesis + Kenney CC0)
+    'cannon': ['gen/cannon.wav'],     # a black-powder bombard fires (stone_ball leaves)
+    'march':  ['gen/march.wav'],      # infantry on the move (janissaries, defenders)
+    'gallop': ['gen/gallop.wav'],     # cavalry
+    'oars':   ['gen/oars.wav'],       # a galley rows
+    'haul':   ['gen/haul.wav'],       # a ship / the great cannon dragged over land
+    'battle': ['gen/battle.wav'],     # the final assault: clash and roar
 }
 for k, fs in KIT.items():
     for f in fs:
@@ -59,7 +66,7 @@ def c(t, slot, gain, pri, win, align='attack', mx=2.0, fade=.25, note='', off=0)
 for ev in EV:
     k, t = ev['kind'], ev['t']; s = ev.get('sfx'); mag = ev.get('mag') or 1
     if s is False: continue
-    if isinstance(s, str) and s in KIT: c(t, s, -14, 5, .6, note=f'{k} forced {s}'); continue
+    if isinstance(s, str) and s in KIT: c(t, s, -14 if s not in ('battle', 'march', 'gallop', 'haul', 'oars') else -21, 5, .6, mx=2.0 if s not in ('battle', 'march', 'gallop', 'haul', 'oars') else 6.5, fade=.25 if s not in ('battle', 'march', 'gallop', 'haul', 'oars') else 1.5, note=f'{k} forced {s}'); continue
     if k == 'number':
         st = ev.get('settle') or t + .3; stops = ev.get('stops') or []
         for r in stops[:-1]: c(r, 'reel', -31, 1, 0, mx=.25, fade=.05, note='reel lock')
@@ -94,6 +101,11 @@ for ev in EV:
         if n in ('explosion', 'tanker_burning'): c(t, 'boom', -12, 8, 1.4, mx=2.4, fade=.9, note='explosion')
         elif n in ('missile', 'drone'): c(t, 'missile', -21, 4, .9, mx=1.3, fade=.3, note='missile in')
         elif n in ('tanker', 'container_ship', 'carrier'): c(t, 'horn', -27, 1, 3.0, mx=2.4, fade=.8, note='ship horn')
+        elif n == 'stone_ball': c(t, 'cannon', -13, 7, 1.2, mx=3.0, fade=1.0, note='bombard fires')
+        elif n in ('janissaries', 'defenders'): c(t, 'march', -25, 2, 2.5, mx=5.0, fade=1.2, note='army marching')
+        elif n == 'cavalry': c(t, 'gallop', -25, 2, 2.5, mx=5.0, fade=1.2, note='cavalry')
+        elif n in ('galley', 'carrack'): c(t, 'oars', -28, 1, 3.0, mx=5.0, fade=1.2, note='oars / sails')
+        elif n in ('galley_hauled', 'bombard'): c(t, 'haul', -23, 3, 2.5, mx=5.5, fade=1.4, note='dragged over land')
     elif k == 'crack': c(t, 'glitch', -25, 3, .6, mx=.7, fade=.3, note='border cracks')
     # regions, plain labels, routes, ships, pings, rulers, flashes, cuts: silent on purpose
 
