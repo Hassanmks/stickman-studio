@@ -4,6 +4,9 @@
 
 **START HERE:** read `PROJECT_STATE.md` first. It holds where the work stopped, the user's confirmed decisions (Western digits, Cairo + Alexandria only, the 12 approved typography upgrades for v4), the file map and the next step. Update it at the end of every session so the next conversation can resume from it.
 
+## Documentary charter (STRICT, signed 2026-11-18, never revoked): read `DOCUMENTARY_STANDARD.md` before every film
+Every film is a living documentary: every spoken event moves on the map (armies, tanks, vehicles, soldiers, boats, aircraft, arrows, fronts, explosions), every missing sprite is made with ChatGPT sheets (in parallel with the voice) before the render, flags always wave (a waving flag pin when the region flag cannot fit), real terrain/forests/detail, and a sound effect for every visual event. A request for speed NEVER removes any of it: speed comes from parallel work only.
+
 ## Unforgivable errors (strict user rule, 2026-11-17): fix at the root BEFORE any new film
 The user caught 7 faults in `hormuz-drone-v2` and asked that they never happen again in any video. They are not patched on that film; the root fixes below must be in `engine/` and `director.mjs` (with their gate rules) before the next film renders, then checked by eye on every `look.jpg`.
 
