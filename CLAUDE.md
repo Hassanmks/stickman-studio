@@ -7,6 +7,9 @@
 ## Documentary charter (STRICT, signed 2026-11-18, never revoked): read `DOCUMENTARY_STANDARD.md` before every film
 Every film is a living documentary: every spoken event moves on the map (armies, tanks, vehicles, soldiers, boats, aircraft, arrows, fronts, explosions), every missing sprite is made with ChatGPT sheets (in parallel with the voice) before the render, flags always wave (a waving flag pin when the region flag cannot fit), real terrain/forests/detail, and a sound effect for every visual event. A request for speed NEVER removes any of it: speed comes from parallel work only.
 
+## Parallel pipeline (STRICT, signed 2026-11-18): follow `PARALLEL_PIPELINE.md` for every film
+Script + shotplan + inventory first (one message), then 4 lanes at once: one browser subagent interleaving ChatGPT sheets and AI Studio voice; PC prefetch of patches/DEM + globe_fix; SFX check; whisper as soon as the voice lands. Join only at the director. Tools still to build: `prefetch`, `inventory`, globe_fix in prep.py, the 535 s render slowdown.
+
 ## Unforgivable errors (strict user rule, 2026-11-17): fix at the root BEFORE any new film
 The user caught 7 faults in `hormuz-drone-v2` and asked that they never happen again in any video. They are not patched on that film; the root fixes below must be in `engine/` and `director.mjs` (with their gate rules) before the next film renders, then checked by eye on every `look.jpg`.
 
